@@ -1,15 +1,25 @@
-from pydantic import BaseModel
+from decimal import Decimal
+
+from pydantic import BaseModel, Field
 
 
-class MenuCategorySchema(BaseModel):
+class SMenuCategory(BaseModel):
     name: str
 
 
-class MenuCategoryResponse(BaseModel):
+class SMenuCategoryResponse(SMenuCategory):
     id: int
-    name: str
 
 
-class MenuItemSchema(BaseModel):
-    name: str
-    category: int
+class SMenuItem(BaseModel):
+    name: str = Field(..., max_length=255)
+    description: str | None = None
+    image: str | None = None
+    price: Decimal
+    cost: Decimal
+    available: bool = True
+    category_id: int
+
+
+class SMenuItemResponse(SMenuItem):
+    id: int

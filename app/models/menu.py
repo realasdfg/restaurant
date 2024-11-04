@@ -22,8 +22,8 @@ class MenuItem(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
-    description: Mapped[str] = mapped_column()
-    image: Mapped[str] = mapped_column()
+    description: Mapped[str | None] = mapped_column()
+    image: Mapped[str | None] = mapped_column()
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     available: Mapped[bool] = mapped_column()
