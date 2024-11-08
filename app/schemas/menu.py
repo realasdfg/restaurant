@@ -21,5 +21,15 @@ class SMenuItem(BaseModel):
     category_id: int
 
 
+class SMenuItemEdit(SMenuItem):
+    name: str | None = None
+    description: str | None = None
+    image: str | None = None
+    price: Decimal | None = None
+    cost: Decimal | None = None
+    available: bool | None = None
+    category_id: int | None = None
+
+
 class SMenuItemResponse(SMenuItem):
     id: int

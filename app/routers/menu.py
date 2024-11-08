@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
 from app.models.menu import MenuCategory, MenuItem
-from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse
+from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse, SMenuItemEdit
 
 router = APIRouter(
     prefix='/menu',
@@ -110,3 +110,52 @@ async def get_menu_items(session: AsyncSession = Depends(get_async_session)) -> 
     result = await session.execute(select(MenuItem))
     items = result.scalars().all()
     return [SMenuItemResponse.model_validate(item, from_attributes=True) for item in items]
+
+
+@router.get('/items/{item_id}')
+async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session)) -> SMenuItemResponse:
+    result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return SMenuItemResponse.model_validate(item, from_attributes=True)
+
+
+@router.put('/items/{item_id}')
+async def update_menu_item(item_id: int, menu_item: SMenuItemEdit = Depends(),
+                           session: AsyncSession = Depends(get_async_session)) -> SMenuItemResponse:
+    result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if menu_item.name:
+        item.name = menu_item.name
+    if menu_item.description:
+        item.description = menu_item.description
+    if menu_item.image:
+        item.image = menu_item.image
+    if menu_item.price:
+        item.price = menu_item.price
+    if menu_item.cost:
+        item.cost = menu_item.cost
+    if menu_item.available:
+        item.available = menu_item.available
+    if menu_item.category_id:
+        result = await session.execute(select(MenuCategory).where(MenuCategory.id == menu_item.category_id))
+        category = result.scalar_one_or_none()
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+        item.category_id = menu_item.category_id
+    await session.commit()
+    return SMenuItemResponse.model_validate(item, from_attributes=True)
+
+
+@router.delete('/items/{item_id}')
+async def delete_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    await session.delete(item)
+    await session.commit()
+    return {"status": 200, "message": "Item deleted"}
