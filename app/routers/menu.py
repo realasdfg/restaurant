@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -33,6 +31,44 @@ async def get_menu_categories(session: AsyncSession = Depends(get_async_session)
     result = await session.execute(select(MenuCategory))
     categories = result.scalars().all()
     return [SMenuCategoryResponse.model_validate(cat, from_attributes=True) for cat in categories]
+
+
+@router.get('/categories/{category_id}')
+async def get_menu_category(category_id: int,
+                            session: AsyncSession = Depends(get_async_session)) -> SMenuCategoryResponse:
+    result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return SMenuCategoryResponse.model_validate(category, from_attributes=True)
+
+
+@router.put('/categories/{category_id}')
+async def update_menu_category(category_id: int,
+                               menu_category: SMenuCategory = Depends(),
+                               session: AsyncSession = Depends(get_async_session)) -> SMenuCategoryResponse:
+    result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    category.name = menu_category.name
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail="Category already exists")
+    return SMenuCategoryResponse.model_validate(category, from_attributes=True)
+
+@router.delete('/categories/{category_id}')
+async def delete_menu_category(category_id: int, session: AsyncSession = Depends(get_async_session)):
+    result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    await session.delete(category)
+    await session.commit()
+    return {"status": 200, "message": "Category deleted"}
+
 
 
 @router.post('/items')
