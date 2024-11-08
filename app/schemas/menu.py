@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class SMenuCategory(BaseModel):
-    name: str
+    name: str = Field(..., max_length=50)
 
 
 class SMenuCategoryResponse(SMenuCategory):
