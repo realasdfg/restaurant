@@ -12,7 +12,7 @@ class SMenuCategoryResponse(SMenuCategory):
 
 
 class SMenuItem(BaseModel):
-    name: str = Field(..., max_length=255)
+    name: str = Field(..., max_length=100)
     description: str | None = None
     image: str | None = None
     price: Decimal

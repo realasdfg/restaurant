@@ -26,7 +26,7 @@ class MenuItem(Base):
     image: Mapped[str | None] = mapped_column()
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
-    available: Mapped[bool] = mapped_column()
+    available: Mapped[bool] = mapped_column(default=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('menu_categories.id'))
 
     category: Mapped['MenuCategory'] = relationship('MenuCategory', back_populates='items')
