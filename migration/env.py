@@ -6,6 +6,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.models.menu import MenuCategory, MenuItem
+from app.models.users import User
 from app.database import Base
 
 # this is the Alembic Config object, which provides
