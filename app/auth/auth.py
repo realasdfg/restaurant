@@ -67,13 +67,13 @@ async def get_current_user(session: AsyncSession = Depends(get_async_session),
     return user
 
 
-async def check_admin(current_user: User = Depends(get_current_user)):
-    if not current_user.role == RoleEnum.WORKER:
+async def get_current_user_if_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role == RoleEnum.WORKER:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return current_user
 
 
-async def check_owner(current_user: User = Depends(get_current_user)):
+async def get_current_user_if_owner(current_user: User = Depends(get_current_user)):
     if current_user.role != RoleEnum.OWNER:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     return current_user
