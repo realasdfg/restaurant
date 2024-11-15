@@ -6,8 +6,8 @@ from app.routers.auth import router as auth_router
 
 def create_app():
     app = FastAPI(root_path='/api/v1')
-    app.include_router(menu_router)
     app.include_router(auth_router)
+    app.include_router(menu_router)
 
     origins = [
         "http://localhost:5173",
