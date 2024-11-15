@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 
 import jwt
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.config import settings
+from app.database import get_async_session
 from app.models.users import User
+from app.schemas.users import RoleEnum
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -47,6 +49,31 @@ async def verify_token(token: str, token_type: str):
 async def get_user_by_username(username: str, session: AsyncSession):
     result = await session.execute(select(User).filter(User.username == username))
     user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status.HTTP_404_NOT_FOUND)
     return user
+
+
+async def get_current_user(session: AsyncSession = Depends(get_async_session),
+                           token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = await verify_token(token, token_type='access')
+    user_username: str = payload.get("sub")
+    user = await get_user_by_username(user_username, session)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+async def check_admin(current_user: User = Depends(get_current_user)):
+    if not current_user.role == RoleEnum.WORKER:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return current_user
+
+
+async def check_owner(current_user: User = Depends(get_current_user)):
+    if current_user.role != RoleEnum.OWNER:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return current_user
