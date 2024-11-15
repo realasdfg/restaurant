@@ -17,10 +17,6 @@ class SUser(BaseModel):
     role: RoleEnum = RoleEnum.WORKER
 
 
-class SUserRegister(SUser):
-    password: str = Field(min_length=8)
-
-
 class SUserResponse(SUser):
     id: int
     created_at: datetime
