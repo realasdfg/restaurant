@@ -22,7 +22,7 @@ class SMenuItem(BaseModel):
 
 
 class SMenuItemEdit(SMenuItem):
-    name: str | None = None
+    name: str | None = Field(None, max_length=100)
     description: str | None = None
     image: str | None = None
     price: Decimal | None = None

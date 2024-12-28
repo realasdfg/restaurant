@@ -19,3 +19,9 @@ class SUser(BaseModel):
 class SUserResponse(SUser):
     id: int
     created_at: datetime
+
+class SUserEdit(SUser):
+    username: str | None = Field(None, max_length=50)
+    first_name: str | None = Field(None, max_length=50)
+    last_name: str | None = Field(None, max_length=50)
+    role: RoleEnum | None = None

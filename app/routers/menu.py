@@ -49,7 +49,7 @@ async def get_menu_category(category_id: int,
 
 @router.put('/categories/{category_id}')
 async def update_menu_category(category_id: int,
-                               menu_category: SMenuCategory = Depends(),
+                               menu_category: SMenuCategory,
                                session: AsyncSession = Depends(get_async_session),
                                current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
@@ -129,7 +129,8 @@ async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_
 
 
 @router.put('/items/{item_id}')
-async def update_menu_item(item_id: int, menu_item: SMenuItemEdit = Depends(),
+async def update_menu_item(item_id: int,
+                           menu_item: SMenuItemEdit,
                            session: AsyncSession = Depends(get_async_session),
                            current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuItemResponse:
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
