@@ -5,16 +5,15 @@ from pydantic import BaseModel, Field
 
 
 class RoleEnum(enum.Enum):
-    WORKER = "worker"
+    STAFF = "staff"
     ADMIN = "admin"
-    OWNER = "owner"
 
 
 class SUser(BaseModel):
     username: str = Field(max_length=50)
     first_name: str = Field(max_length=50)
     last_name: str = Field(max_length=50)
-    role: RoleEnum = RoleEnum.WORKER
+    role: RoleEnum = RoleEnum.STAFF
 
 
 class SUserResponse(SUser):

@@ -3,11 +3,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.auth import get_current_user_if_admin
 from app.database import get_async_session
 from app.models.menu import MenuCategory, MenuItem
 from app.models.users import User
 from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse, SMenuItemEdit
+from app.schemas.users import RoleEnum
+from app.services.roles import role_required
 
 router = APIRouter(
     prefix='/menu',
@@ -18,7 +19,7 @@ router = APIRouter(
 @router.post('/categories')
 async def add_menu_category(menu_category: SMenuCategory,
                             session: AsyncSession = Depends(get_async_session),
-                            current_user: User = Depends(get_current_user_if_admin)) -> SMenuCategoryResponse:
+                            current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
     new_category = MenuCategory(name=menu_category.name)
     session.add(new_category)
     try:
@@ -50,7 +51,7 @@ async def get_menu_category(category_id: int,
 async def update_menu_category(category_id: int,
                                menu_category: SMenuCategory = Depends(),
                                session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(get_current_user_if_admin)) -> SMenuCategoryResponse:
+                               current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
     category = result.scalar_one_or_none()
     if not category:
@@ -65,7 +66,7 @@ async def update_menu_category(category_id: int,
 
 @router.delete('/categories/{category_id}')
 async def delete_menu_category(category_id: int, session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(get_current_user_if_admin)):
+                               current_user: User = Depends(role_required(RoleEnum.ADMIN))):
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
     category = result.scalar_one_or_none()
     if not category:
@@ -77,9 +78,9 @@ async def delete_menu_category(category_id: int, session: AsyncSession = Depends
 
 
 @router.post('/items')
-async def add_menu_item(menu_item: SMenuItem = Depends(),
+async def add_menu_item(menu_item: SMenuItem,
                         session: AsyncSession = Depends(get_async_session),
-                        current_user: User = Depends(get_current_user_if_admin)) -> SMenuItemResponse:
+                        current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuItemResponse:
     existing_item_query = select(MenuItem).where(MenuItem.name == menu_item.name)
     result = await session.execute(existing_item_query)
     existing_item = result.scalar_one_or_none()
@@ -130,7 +131,7 @@ async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_
 @router.put('/items/{item_id}')
 async def update_menu_item(item_id: int, menu_item: SMenuItemEdit = Depends(),
                            session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(get_current_user_if_admin)) -> SMenuItemResponse:
+                           current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuItemResponse:
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
@@ -159,7 +160,7 @@ async def update_menu_item(item_id: int, menu_item: SMenuItemEdit = Depends(),
 
 @router.delete('/items/{item_id}')
 async def delete_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(get_current_user_if_admin)):
+                           current_user: User = Depends(role_required(RoleEnum.ADMIN))):
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:

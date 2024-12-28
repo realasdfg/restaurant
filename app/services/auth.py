@@ -11,7 +11,6 @@ from starlette import status
 from app.config import settings
 from app.database import get_async_session
 from app.models.users import User
-from app.schemas.users import RoleEnum
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -65,15 +64,3 @@ async def get_current_user(session: AsyncSession = Depends(get_async_session),
     if user is None:
         raise credentials_exception
     return user
-
-
-async def get_current_user_if_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role == RoleEnum.WORKER:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return current_user
-
-
-async def get_current_user_if_owner(current_user: User = Depends(get_current_user)):
-    if current_user.role != RoleEnum.OWNER:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    return current_user
