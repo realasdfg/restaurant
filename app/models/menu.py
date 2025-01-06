@@ -1,9 +1,11 @@
-from sqlalchemy import ForeignKey, String, DECIMAL, Enum
+from sqlalchemy import ForeignKey, String, DECIMAL, Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
 
 from app.database import Base
+from app.models.orders import OrderItem
+from app.schemas.menu import MenuItemTypeEnum
 
 
 class MenuCategory(Base):
@@ -26,8 +28,9 @@ class MenuItem(Base):
     image: Mapped[str | None] = mapped_column()
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
-    type: Mapped[str] = mapped_column(Enum('by_weight', 'by_quantity', name='menuitem_type'))
+    type: Mapped[MenuItemTypeEnum] = mapped_column(SqlEnum(MenuItemTypeEnum))
     available: Mapped[bool] = mapped_column(default=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('menu_categories.id'))
 
     category: Mapped['MenuCategory'] = relationship('MenuCategory', back_populates='items')
+    order_items: Mapped[list['OrderItem']] = relationship('OrderItem', back_populates='menu_item')

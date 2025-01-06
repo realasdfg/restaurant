@@ -1,11 +1,12 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, DECIMAL, func, Enum
+from sqlalchemy import ForeignKey, String, DECIMAL, func, Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
 
 from app.database import Base
+from app.schemas.orders import OrderTypeEnum
 
 
 class Table(Base):
@@ -22,7 +23,7 @@ class Order(Base):
     __tablename__ = 'orders'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    type: Mapped[str] = mapped_column(Enum('dinein', 'togo', name='order_type'))
+    type: Mapped[OrderTypeEnum] = mapped_column(SqlEnum(OrderTypeEnum))
     created_by: Mapped[int] = mapped_column(ForeignKey('users.id'))
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     paid: Mapped[bool] = mapped_column(default=False)
@@ -33,6 +34,7 @@ class Order(Base):
 
 
     table: Mapped['Table'] = relationship('Table', back_populates='orders')
+    order_items: Mapped[list['OrderItem']] = relationship('OrderItem', back_populates='order')
 
 
 class OrderItem(Base):
@@ -42,3 +44,6 @@ class OrderItem(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'))
     menu_item_id: Mapped[int] = mapped_column(ForeignKey('menu_items.id'))
     quantity: Mapped[int] = mapped_column()
+
+    order: Mapped['Order'] = relationship('Order', back_populates='order_items')
+    menu_item: Mapped['MenuItem'] = relationship('MenuItem', back_populates='order_items')
