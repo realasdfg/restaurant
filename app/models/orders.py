@@ -33,3 +33,12 @@ class Order(Base):
 
 
     table: Mapped['Table'] = relationship('Table', back_populates='orders')
+
+
+class OrderItem(Base):
+    __tablename__ = 'order_items'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'))
+    menu_item_id: Mapped[int] = mapped_column(ForeignKey('menu_items.id'))
+    quantity: Mapped[int] = mapped_column()

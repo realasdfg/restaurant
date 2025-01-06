@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, DECIMAL
+from sqlalchemy import ForeignKey, String, DECIMAL, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
@@ -26,6 +26,7 @@ class MenuItem(Base):
     image: Mapped[str | None] = mapped_column()
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
+    type: Mapped[str] = mapped_column(Enum('by_weight', 'by_quantity', name='menuitem_type'))
     available: Mapped[bool] = mapped_column(default=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('menu_categories.id'))
 
