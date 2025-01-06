@@ -13,7 +13,7 @@ class Table(Base):
     __tablename__ = 'tables'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(20), unique=True)
 
     orders: Mapped[list['Order']] = relationship(
         'Order', back_populates='table', cascade='all, delete-orphan'
