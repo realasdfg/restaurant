@@ -91,7 +91,7 @@ async def add_menu_item(menu_item: SMenuItem,
     category_result = await session.execute(category_query)
     category = category_result.scalar_one_or_none()
     if category is None:
-        raise HTTPException(status_code=400, detail="Category with this ID does not exist.")
+        raise HTTPException(status_code=404, detail="Category with this ID does not exist.")
 
     new_item = MenuItem(
         name=menu_item.name,
