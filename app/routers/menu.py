@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
 from app.models.menu import MenuCategory, MenuItem
 from app.models.users import User
-from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse, SMenuItemEdit
+from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse, SMenuItemEdit, \
+    SMenuItemFilter
 from app.schemas.users import RoleEnum
 from app.services.roles import role_required
 
@@ -64,6 +65,7 @@ async def update_menu_category(category_id: int,
         raise HTTPException(status_code=400, detail="Category already exists")
     return SMenuCategoryResponse.model_validate(category, from_attributes=True)
 
+
 @router.delete('/categories/{category_id}')
 async def delete_menu_category(category_id: int, session: AsyncSession = Depends(get_async_session),
                                current_user: User = Depends(role_required(RoleEnum.ADMIN))):
@@ -74,7 +76,6 @@ async def delete_menu_category(category_id: int, session: AsyncSession = Depends
     await session.delete(category)
     await session.commit()
     return {"status": 200, "message": "Category deleted"}
-
 
 
 @router.post('/items')
@@ -99,6 +100,7 @@ async def add_menu_item(menu_item: SMenuItem,
         image=menu_item.image,
         price=menu_item.price,
         cost=menu_item.cost,
+        type=menu_item.type,
         available=menu_item.available,
         category_id=menu_item.category_id
     )
@@ -113,8 +115,15 @@ async def add_menu_item(menu_item: SMenuItem,
 
 
 @router.get('/items')
-async def get_menu_items(session: AsyncSession = Depends(get_async_session)) -> list[SMenuItemResponse]:
-    result = await session.execute(select(MenuItem))
+async def get_menu_items(filters: SMenuItemFilter = Depends(),
+                         session: AsyncSession = Depends(get_async_session)) -> list[SMenuItemResponse]:
+    query = select(MenuItem)
+    if filters.name:
+        query = query.where(func.lower(MenuItem.name).ilike(f"%{filters.name.lower()}%"))
+    if filters.category_id:
+        query = query.where(MenuItem.category_id == filters.category_id)
+
+    result = await session.execute(query)
     items = result.scalars().all()
     return [SMenuItemResponse.model_validate(item, from_attributes=True) for item in items]
 
@@ -147,6 +156,8 @@ async def update_menu_item(item_id: int,
         item.price = menu_item.price
     if menu_item.cost:
         item.cost = menu_item.cost
+    if menu_item.type:
+        item.type = menu_item.type
     if menu_item.available:
         item.available = menu_item.available
     if menu_item.category_id:

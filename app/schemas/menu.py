@@ -41,3 +41,8 @@ class SMenuItemEdit(SMenuItem):
 
 class SMenuItemResponse(SMenuItem):
     id: int
+
+
+class SMenuItemFilter(BaseModel):
+    name: str | None = None
+    category_id: int | None = None
