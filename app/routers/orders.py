@@ -11,7 +11,7 @@ from app.models.users import User
 from app.schemas.orders import STable, STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
-from app.services.roles import role_required
+from app.services.roles import role_required, has_access
 
 router = APIRouter(
     prefix='',
@@ -51,10 +51,10 @@ async def get_table(table_id: int,
 
 
 @router.put('/tables/{table_id}')
-async def update_menu_category(table_id: int,
-                               table_data: STable,
-                               session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> STableResponse:
+async def update_table(table_id: int,
+                       table_data: STable,
+                       session: AsyncSession = Depends(get_async_session),
+                       current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> STableResponse:
     result = await session.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
@@ -69,8 +69,8 @@ async def update_menu_category(table_id: int,
 
 
 @router.delete('/tables/{table_id}')
-async def delete_menu_category(table_id: int, session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(role_required(RoleEnum.ADMIN))):
+async def delete_table(table_id: int, session: AsyncSession = Depends(get_async_session),
+                       current_user: User = Depends(role_required(RoleEnum.ADMIN))):
     result = await session.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
@@ -110,33 +110,40 @@ async def add_order(order: SOrderCreation,
 
 
 @router.get('/orders')
-async def get_orders(session: AsyncSession = Depends(get_async_session),
+async def get_orders(current_only: bool, session: AsyncSession = Depends(get_async_session),
                      current_user: User = Depends(get_current_user)) -> list[SOrderResponse]:
-    result = await session.execute(select(Order))
+    if not current_only:
+        if not await has_access(current_user.role, RoleEnum.ADMIN):
+            raise HTTPException(status_code=403, detail=f"Access denied")
+        query = select(Order)
+    else:
+        query = select(Order).where(Order.paid == False)
+    result = await session.execute(query.order_by(Order.created_at.desc()))
     orders = result.scalars().all()
     return [SOrderResponse.model_validate(order, from_attributes=True) for order in orders]
 
 
 @router.get('/orders/{order_id}')
-async def get_menu_item(order_id: int, session: AsyncSession = Depends(get_async_session),
-                        current_user: User = Depends(get_current_user)) -> SOrderResponse:
+async def get_order(order_id: int, session: AsyncSession = Depends(get_async_session),
+                    current_user: User = Depends(get_current_user)) -> SOrderResponse:
     result = await session.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    if order.paid and not await has_access(current_user.role, RoleEnum.ADMIN):
+        raise HTTPException(status_code=403, detail=f"Access denied")
     return SOrderResponse.model_validate(order, from_attributes=True)
 
 
 @router.put('/orders/{order_id}')
-async def update_menu_item(order_id: int,
-                           order_data: SOrderEdit,
-                           session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderResponse:
+async def update_order(order_id: int,
+                       order_data: SOrderEdit,
+                       session: AsyncSession = Depends(get_async_session),
+                       current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderResponse:
     result = await session.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-
     if order.paid:
         raise HTTPException(status_code=403, detail="Order cannot be changed after payment")
 
@@ -174,8 +181,8 @@ async def update_menu_item(order_id: int,
 
 
 @router.delete('/orders/{order_id}')
-async def delete_menu_item(order_id: int, session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(role_required(RoleEnum.ADMIN))):
+async def delete_order(order_id: int, session: AsyncSession = Depends(get_async_session),
+                       current_user: User = Depends(role_required(RoleEnum.ADMIN))):
     result = await session.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
