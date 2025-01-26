@@ -6,9 +6,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
-from app.models.orders import Table, Order
+from app.models.menu import MenuItem
+from app.models.orders import Table, Order, OrderItem
 from app.models.users import User
-from app.schemas.orders import STable, STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit
+from app.schemas.orders import STable, STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit, \
+    SOrderItemResponse, SAddOrderItem, STableCreation
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import role_required, has_access
@@ -20,7 +22,7 @@ router = APIRouter(
 
 
 @router.post('/tables')
-async def add_table(table: STable,
+async def add_table(table: STableCreation,
                     session: AsyncSession = Depends(get_async_session),
                     current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> STableResponse:
     new_table = Table(name=table.name)
@@ -96,8 +98,11 @@ async def add_order(order: SOrderCreation,
         table = table_result.scalar_one_or_none()
         if table is None:
             raise HTTPException(status_code=404, detail="Table with this ID does not exist.")
+        if not table.is_free:
+            raise HTTPException(status_code=400, detail="Table is already occupied.")
 
         new_order.table_id = order.table_id
+        table.is_free = False
 
     session.add(new_order)
     try:
@@ -157,6 +162,7 @@ async def update_order(order_id: int,
         order.paid_at = datetime.now()
         order.paid_by_cash = order_data.paid_by_cash
         order.paid_by_card = order_data.paid_by_card
+        order.table.is_free = True
     else:
         if order_data.paid_by_card or order_data.paid_by_cash:
             raise HTTPException(status_code=400, detail="Can change payment sum during order closing only")
@@ -164,6 +170,7 @@ async def update_order(order_id: int,
         if order_data.type:
             order.type = order_data.type
         if order.type == OrderTypeEnum.TOGO:
+            order.table.is_free = True
             order.table_id = None
         else:
             if order_data.table_id:
@@ -171,6 +178,8 @@ async def update_order(order_id: int,
                 table = table_result.scalar_one_or_none()
                 if table is None:
                     raise HTTPException(status_code=404, detail="Table with this ID does not exist.")
+                if not table.is_free:
+                    raise HTTPException(status_code=400, detail="Table is already occupied.")
                 order.table_id = order_data.table_id
 
             if order.table_id is None:
@@ -190,3 +199,42 @@ async def delete_order(order_id: int, session: AsyncSession = Depends(get_async_
     await session.delete(order)
     await session.commit()
     return {"status": 200, "message": "Order deleted"}
+
+
+# TODO
+@router.post('/orders/{order_id}/items')
+async def add_order_item(order_id: int,
+                         order_item_info: SAddOrderItem,
+                         session: AsyncSession = Depends(get_async_session),
+                         current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderItemResponse:
+    order_item_result = await session.execute(select(OrderItem)
+                                              .where(OrderItem.order_id == order_id)
+                                              .where(OrderItem.menu_item_id == order_item_info.menu_item_id))
+    order_item = order_item_result.scalar_one_or_none()
+
+    if order_item:
+        order_item.quantity = order_item_info.quantity
+    else:
+        order_result = await session.execute(select(Order).where(Order.id == order_id))
+        order = order_result.scalar_one_or_none()
+        if order is None:
+            raise HTTPException(status_code=404, detail="Order with this ID does not exist.")
+        menu_item_result = await session.execute(select(MenuItem).where(MenuItem.id == order_item_info.menu_item_id))
+        menu_item = menu_item_result.scalar_one_or_none()
+        if menu_item is None:
+            raise HTTPException(status_code=404, detail="Menu item with this ID does not exist.")
+
+        order_item = OrderItem(
+            order_id=order_id,
+            menu_item_id=order_item_info.menu_item_id,
+            quantity=order_item_info.quantity
+        )
+
+        session.add(order_item)
+    try:
+        await session.commit()
+        await session.refresh(order_item)
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(status_code=400, detail="Failed to add item to the order due to a database error.")
+    return SOrderItemResponse.model_validate(order_item, from_attributes=True)

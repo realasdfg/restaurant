@@ -10,8 +10,12 @@ class OrderTypeEnum(enum.Enum):
     TOGO = "togo"
 
 
-class STable(BaseModel):
+class STableCreation(BaseModel):
     name: str = Field(..., max_length=20)
+
+
+class STable(STableCreation):
+    is_free: bool = True
 
 
 class STableResponse(STable):
@@ -51,4 +55,17 @@ class SOrderItem(BaseModel):
 
 
 class SMenuItemResponse(SOrderItem):
+    id: int
+
+
+class SAddOrderItem(BaseModel):
+    menu_item_id: int
+    quantity: int
+
+
+class SOrderItem(SAddOrderItem):
+    order_id: int
+
+
+class SOrderItemResponse(SOrderItem):
     id: int
