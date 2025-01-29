@@ -9,8 +9,8 @@ from app.database import get_async_session
 from app.models.menu import MenuItem
 from app.models.orders import Table, Order, OrderItem
 from app.models.users import User
-from app.schemas.orders import STable, STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit, \
-    SOrderItemResponse, SAddOrderItem, STableCreation
+from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit, \
+    SOrderItemResponse, STableCreation, SAddOrderItemAddOrEdit
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import role_required, has_access
@@ -201,35 +201,36 @@ async def delete_order(order_id: int, session: AsyncSession = Depends(get_async_
     return {"status": 200, "message": "Order deleted"}
 
 
-# TODO
-@router.post('/orders/{order_id}/items')
-async def add_order_item(order_id: int,
-                         order_item_info: SAddOrderItem,
-                         session: AsyncSession = Depends(get_async_session),
-                         current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderItemResponse:
+@router.patch('/orders/{order_id}/menu-items/{item_id}')
+async def add_or_update_order_item(order_id: int, item_id: int,
+                                   order_item_info: SAddOrderItemAddOrEdit,
+                                   session: AsyncSession = Depends(get_async_session),
+                                   current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderItemResponse:
     order_item_result = await session.execute(select(OrderItem)
                                               .where(OrderItem.order_id == order_id)
-                                              .where(OrderItem.menu_item_id == order_item_info.menu_item_id))
+                                              .where(OrderItem.menu_item_id == item_id))
     order_item = order_item_result.scalar_one_or_none()
 
     if order_item:
-        order_item.quantity = order_item_info.quantity
+        if order_item_info.quantity:
+            order_item.quantity = order_item_info.quantity
+        else:
+            order_item.quantity += 1
     else:
         order_result = await session.execute(select(Order).where(Order.id == order_id))
         order = order_result.scalar_one_or_none()
         if order is None:
             raise HTTPException(status_code=404, detail="Order with this ID does not exist.")
-        menu_item_result = await session.execute(select(MenuItem).where(MenuItem.id == order_item_info.menu_item_id))
+        menu_item_result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
         menu_item = menu_item_result.scalar_one_or_none()
         if menu_item is None:
             raise HTTPException(status_code=404, detail="Menu item with this ID does not exist.")
 
         order_item = OrderItem(
             order_id=order_id,
-            menu_item_id=order_item_info.menu_item_id,
+            menu_item_id=item_id,
             quantity=order_item_info.quantity
         )
-
         session.add(order_item)
     try:
         await session.commit()
@@ -238,3 +239,38 @@ async def add_order_item(order_id: int,
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to add item to the order due to a database error.")
     return SOrderItemResponse.model_validate(order_item, from_attributes=True)
+
+
+@router.get('/orders/{order_id}/menu-items')
+async def get_order_items(order_id: int,
+                          session: AsyncSession = Depends(get_async_session)) -> list[SOrderItemResponse]:
+    result = await session.execute(select(OrderItem).where(OrderItem.order_id == order_id))
+    order_items = result.scalars().all()
+    return [SOrderItemResponse.model_validate(order_item, from_attributes=True) for order_item in order_items]
+
+
+@router.get('/orders/{order_id}/menu-items/{item_id}')
+async def get_order_item(order_id: int, item_id: int,
+                         session: AsyncSession = Depends(get_async_session)) -> SOrderItemResponse:
+    order_item_result = await session.execute(select(OrderItem)
+                                              .where(OrderItem.order_id == order_id)
+                                              .where(OrderItem.menu_item_id == item_id))
+    order_item = order_item_result.scalar_one_or_none()
+    if order_item is None:
+        raise HTTPException(status_code=404, detail="Order, menu item or item in order does not exist.")
+    return SOrderItemResponse.model_validate(order_item, from_attributes=True)
+
+
+@router.delete('/orders/{order_id}/menu-items/{item_id}')
+async def delete_order_item(order_id: int, item_id: int,
+                            session: AsyncSession = Depends(get_async_session),
+                            current_user: User = Depends(role_required(RoleEnum.STAFF))):
+    order_item_result = await session.execute(select(OrderItem)
+                                              .where(OrderItem.order_id == order_id)
+                                              .where(OrderItem.menu_item_id == item_id))
+    order_item = order_item_result.scalar_one_or_none()
+    if order_item is None:
+        raise HTTPException(status_code=404, detail="Order, menu item or item in order does not exist.")
+    await session.delete(order_item)
+    await session.commit()
+    return {"status": 200, "message": "Order item deleted"}

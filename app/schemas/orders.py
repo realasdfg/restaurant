@@ -58,13 +58,14 @@ class SMenuItemResponse(SOrderItem):
     id: int
 
 
-class SAddOrderItem(BaseModel):
+class SAddOrderItemAddOrEdit(BaseModel):
+    quantity: int | None = None
+
+
+class SOrderItem(SAddOrderItemAddOrEdit):
+    order_id: int
     menu_item_id: int
     quantity: int
-
-
-class SOrderItem(SAddOrderItem):
-    order_id: int
 
 
 class SOrderItemResponse(SOrderItem):
