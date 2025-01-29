@@ -32,7 +32,7 @@ async def get_user(user_id: int,
     return SUserResponse.model_validate(user, from_attributes=True)
 
 
-@router.put('/{user_id}')
+@router.patch('/{user_id}')
 async def update_user(user_id: int,
                       user_data: SUserEdit,
                       session: AsyncSession = Depends(get_async_session),

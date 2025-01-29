@@ -54,7 +54,7 @@ async def get_table(table_id: int,
 
 @router.put('/tables/{table_id}')
 async def update_table(table_id: int,
-                       table_data: STable,
+                       table_data: STableCreation,
                        session: AsyncSession = Depends(get_async_session),
                        current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> STableResponse:
     result = await session.execute(select(Table).where(Table.id == table_id))
@@ -140,7 +140,7 @@ async def get_order(order_id: int, session: AsyncSession = Depends(get_async_ses
     return SOrderResponse.model_validate(order, from_attributes=True)
 
 
-@router.put('/orders/{order_id}')
+@router.patch('/orders/{order_id}')
 async def update_order(order_id: int,
                        order_data: SOrderEdit,
                        session: AsyncSession = Depends(get_async_session),

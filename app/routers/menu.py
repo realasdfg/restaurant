@@ -12,12 +12,12 @@ from app.schemas.users import RoleEnum
 from app.services.roles import role_required
 
 router = APIRouter(
-    prefix='/menu',
+    prefix='',
     tags=['Menu']
 )
 
 
-@router.post('/categories')
+@router.post('/menu-categories')
 async def add_menu_category(menu_category: SMenuCategory,
                             session: AsyncSession = Depends(get_async_session),
                             current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
@@ -31,14 +31,14 @@ async def add_menu_category(menu_category: SMenuCategory,
     return SMenuCategoryResponse.model_validate(new_category, from_attributes=True)
 
 
-@router.get('/categories')
+@router.get('/menu-categories')
 async def get_menu_categories(session: AsyncSession = Depends(get_async_session)) -> list[SMenuCategoryResponse]:
     result = await session.execute(select(MenuCategory))
     categories = result.scalars().all()
     return [SMenuCategoryResponse.model_validate(cat, from_attributes=True) for cat in categories]
 
 
-@router.get('/categories/{category_id}')
+@router.get('/menu-categories/{category_id}')
 async def get_menu_category(category_id: int,
                             session: AsyncSession = Depends(get_async_session)) -> SMenuCategoryResponse:
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
@@ -48,7 +48,7 @@ async def get_menu_category(category_id: int,
     return SMenuCategoryResponse.model_validate(category, from_attributes=True)
 
 
-@router.put('/categories/{category_id}')
+@router.put('/menu-categories/{category_id}')
 async def update_menu_category(category_id: int,
                                menu_category: SMenuCategory,
                                session: AsyncSession = Depends(get_async_session),
@@ -66,7 +66,7 @@ async def update_menu_category(category_id: int,
     return SMenuCategoryResponse.model_validate(category, from_attributes=True)
 
 
-@router.delete('/categories/{category_id}')
+@router.delete('/menu-categories/{category_id}')
 async def delete_menu_category(category_id: int, session: AsyncSession = Depends(get_async_session),
                                current_user: User = Depends(role_required(RoleEnum.ADMIN))):
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
@@ -78,7 +78,7 @@ async def delete_menu_category(category_id: int, session: AsyncSession = Depends
     return {"status": 200, "message": "Category deleted"}
 
 
-@router.post('/items')
+@router.post('/menu-items')
 async def add_menu_item(menu_item: SMenuItem,
                         session: AsyncSession = Depends(get_async_session),
                         current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuItemResponse:
@@ -114,7 +114,7 @@ async def add_menu_item(menu_item: SMenuItem,
     return SMenuItemResponse.model_validate(new_item, from_attributes=True)
 
 
-@router.get('/items')
+@router.get('/menu-items')
 async def get_menu_items(filters: SMenuItemFilter = Depends(),
                          session: AsyncSession = Depends(get_async_session)) -> list[SMenuItemResponse]:
     query = select(MenuItem)
@@ -128,7 +128,7 @@ async def get_menu_items(filters: SMenuItemFilter = Depends(),
     return [SMenuItemResponse.model_validate(item, from_attributes=True) for item in items]
 
 
-@router.get('/items/{item_id}')
+@router.get('/menu-items/{item_id}')
 async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session)) -> SMenuItemResponse:
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
@@ -137,7 +137,7 @@ async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_
     return SMenuItemResponse.model_validate(item, from_attributes=True)
 
 
-@router.put('/items/{item_id}')
+@router.patch('/menu-items/{item_id}')
 async def update_menu_item(item_id: int,
                            menu_item: SMenuItemEdit,
                            session: AsyncSession = Depends(get_async_session),
@@ -170,7 +170,7 @@ async def update_menu_item(item_id: int,
     return SMenuItemResponse.model_validate(item, from_attributes=True)
 
 
-@router.delete('/items/{item_id}')
+@router.delete('/menu-items/{item_id}')
 async def delete_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session),
                            current_user: User = Depends(role_required(RoleEnum.ADMIN))):
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
