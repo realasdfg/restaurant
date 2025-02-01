@@ -10,7 +10,7 @@ from app.models.menu import MenuItem
 from app.models.orders import Table, Order, OrderItem
 from app.models.users import User
 from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit, \
-    SOrderItemResponse, STableCreation, SAddOrderItemAddOrEdit
+    SOrderItemResponse, STableCreation
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import role_required, has_access
@@ -203,7 +203,7 @@ async def delete_order(order_id: int, session: AsyncSession = Depends(get_async_
 
 @router.patch('/orders/{order_id}/menu-items/{item_id}')
 async def add_or_update_order_item(order_id: int, item_id: int,
-                                   order_item_info: SAddOrderItemAddOrEdit,
+                                   quantity: int | None = None,
                                    session: AsyncSession = Depends(get_async_session),
                                    current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderItemResponse:
     order_item_result = await session.execute(select(OrderItem)
@@ -212,8 +212,8 @@ async def add_or_update_order_item(order_id: int, item_id: int,
     order_item = order_item_result.scalar_one_or_none()
 
     if order_item:
-        if order_item_info.quantity:
-            order_item.quantity = order_item_info.quantity
+        if quantity:
+            order_item.quantity = quantity
         else:
             order_item.quantity += 1
     else:
@@ -229,7 +229,7 @@ async def add_or_update_order_item(order_id: int, item_id: int,
         order_item = OrderItem(
             order_id=order_id,
             menu_item_id=item_id,
-            quantity=order_item_info.quantity
+            quantity=quantity
         )
         session.add(order_item)
     try:
