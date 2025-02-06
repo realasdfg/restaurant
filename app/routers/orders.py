@@ -156,13 +156,14 @@ async def update_order(order_id: int,
         if order_data.type or order_data.table_id:
             raise HTTPException(status_code=400,
                                 detail="Can't close order and change its type or table at the same time")
-        if not order_data.paid_by_card or not order_data.paid_by_cash:
+        if not order_data.paid_by_card and not order_data.paid_by_cash:
             raise HTTPException(status_code=400, detail="Must be provided some sums for payment")
         order.paid = True
         order.paid_at = datetime.now()
         order.paid_by_cash = order_data.paid_by_cash
         order.paid_by_card = order_data.paid_by_card
-        order.table.is_free = True
+        if order.table:
+            order.table.is_free = True
     else:
         if order_data.paid_by_card or order_data.paid_by_cash:
             raise HTTPException(status_code=400, detail="Can change payment sum during order closing only")
@@ -172,18 +173,20 @@ async def update_order(order_id: int,
         if order.type == OrderTypeEnum.TOGO:
             order.table.is_free = True
             order.table_id = None
-        else:
-            if order_data.table_id:
-                table_result = await session.execute(select(Table).where(Table.id == order_data.table_id))
-                table = table_result.scalar_one_or_none()
-                if table is None:
-                    raise HTTPException(status_code=404, detail="Table with this ID does not exist.")
-                if not table.is_free:
-                    raise HTTPException(status_code=400, detail="Table is already occupied.")
-                order.table_id = order_data.table_id
-
-            if order.table_id is None:
+        elif order.type == OrderTypeEnum.DINEIN:
+            if order_data.table_id is None:
                 raise HTTPException(status_code=400, detail="Order with 'dine in' type must have table_id.")
+            table_result = await session.execute(select(Table).where(Table.id == order_data.table_id))
+            table = table_result.scalar_one_or_none()
+            if table is None:
+                raise HTTPException(status_code=404, detail="Table with this ID does not exist.")
+            if not table.is_free:
+                raise HTTPException(status_code=400, detail="Table is already occupied.")
+            if order.table:
+                order.table.is_free = True
+            order.table = table
+            order.table.is_free = False
+
 
     await session.commit()
     return SOrderResponse.model_validate(order, from_attributes=True)
