@@ -17,7 +17,7 @@ class Table(Base):
     is_free: Mapped[bool] = mapped_column(default=True)
 
     orders: Mapped[list['Order']] = relationship(
-        'Order', back_populates='table', cascade='all, delete-orphan'
+        'Order', back_populates='table', cascade='all, delete-orphan', lazy="selectin"
     )
 
 class Order(Base):
@@ -34,8 +34,8 @@ class Order(Base):
     table_id: Mapped[int | None] = mapped_column(ForeignKey('tables.id'))
 
 
-    table: Mapped['Table'] = relationship('Table', back_populates='orders')
-    order_items: Mapped[list['OrderItem']] = relationship('OrderItem', back_populates='order')
+    table: Mapped['Table'] = relationship('Table', back_populates='orders', lazy="selectin")
+    order_items: Mapped[list['OrderItem']] = relationship('OrderItem', back_populates='order', lazy="selectin")
 
 
 class OrderItem(Base):
@@ -46,5 +46,5 @@ class OrderItem(Base):
     menu_item_id: Mapped[int] = mapped_column(ForeignKey('menu_items.id'))
     quantity: Mapped[int] = mapped_column()
 
-    order: Mapped['Order'] = relationship('Order', back_populates='order_items')
-    menu_item: Mapped['MenuItem'] = relationship('MenuItem', back_populates='order_items')
+    order: Mapped['Order'] = relationship('Order', back_populates='order_items', lazy="selectin")
+    menu_item: Mapped['MenuItem'] = relationship('MenuItem', back_populates='order_items', lazy="selectin")
