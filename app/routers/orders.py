@@ -14,7 +14,7 @@ from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SO
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import role_required, has_access
-from app.services.websockets import broadcast_order
+from app.services.websockets import broadcast_order, broadcast_table
 
 router = APIRouter(
     prefix='',
@@ -110,6 +110,9 @@ async def add_order(order: SOrderCreation,
         await session.commit()
         await session.refresh(new_order)
         await broadcast_order(SOrderResponse.model_validate(new_order, from_attributes=True).model_dump_json())
+        if order.type == OrderTypeEnum.DINEIN:
+            await broadcast_table(
+                STableResponse.model_validate(new_order.table, from_attributes=True).model_dump_json())
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to create order due to a database error.")
@@ -154,6 +157,8 @@ async def update_order(order_id: int,
     if order.paid:
         raise HTTPException(status_code=403, detail="Order cannot be changed after payment")
 
+    old_table = order.table
+
     if order_data.paid:
         if order_data.type or order_data.table_id:
             raise HTTPException(status_code=400,
@@ -189,23 +194,12 @@ async def update_order(order_id: int,
             order.table = table
             order.table.is_free = False
 
-
     await session.commit()
     await broadcast_order(SOrderResponse.model_validate(order, from_attributes=True).model_dump_json())
+    await broadcast_table(STableResponse.model_validate(order.table, from_attributes=True).model_dump_json())
+    if old_table:
+        await broadcast_table(STableResponse.model_validate(old_table, from_attributes=True).model_dump_json())
     return SOrderResponse.model_validate(order, from_attributes=True)
-
-
-@router.delete('/orders/{order_id}')
-async def delete_order(order_id: int, session: AsyncSession = Depends(get_async_session),
-                       current_user: User = Depends(role_required(RoleEnum.ADMIN))):
-    result = await session.execute(select(Order).where(Order.id == order_id))
-    order = result.scalar_one_or_none()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    await session.delete(order)
-    await session.commit()
-    return {"status": 200, "message": "Order deleted"}
-
 
 @router.patch('/orders/{order_id}/menu-items/{item_id}')
 async def add_or_update_order_item(order_id: int, item_id: int,
