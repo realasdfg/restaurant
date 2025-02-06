@@ -78,6 +78,15 @@ async def delete_menu_category(category_id: int, session: AsyncSession = Depends
     return {"status": 200, "message": "Category deleted"}
 
 
+@router.get('/menu-categories/{category_id}/menu-items')
+async def get_menu_items_by_category(category_id: int, session: AsyncSession = Depends(get_async_session),
+                                     current_user: User = Depends(role_required(RoleEnum.STAFF))) -> list[
+    SMenuItemResponse]:
+    result = await session.execute(select(MenuItem).where(MenuItem.category_id == category_id))
+    items = result.scalars().all()
+    return [SMenuItemResponse.model_validate(item, from_attributes=True) for item in items]
+
+
 @router.post('/menu-items')
 async def add_menu_item(menu_item: SMenuItem,
                         session: AsyncSession = Depends(get_async_session),
@@ -120,8 +129,6 @@ async def get_menu_items(filters: SMenuItemFilter = Depends(),
     query = select(MenuItem)
     if filters.name:
         query = query.where(func.lower(MenuItem.name).ilike(f"%{filters.name.lower()}%"))
-    if filters.category_id:
-        query = query.where(MenuItem.category_id == filters.category_id)
 
     result = await session.execute(query)
     items = result.scalars().all()
