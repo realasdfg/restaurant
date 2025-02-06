@@ -14,6 +14,7 @@ from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SO
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import role_required, has_access
+from app.services.websockets import broadcast_order
 
 router = APIRouter(
     prefix='',
@@ -108,6 +109,7 @@ async def add_order(order: SOrderCreation,
     try:
         await session.commit()
         await session.refresh(new_order)
+        await broadcast_order(SOrderResponse.model_validate(new_order, from_attributes=True).model_dump_json())
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to create order due to a database error.")
@@ -189,6 +191,7 @@ async def update_order(order_id: int,
 
 
     await session.commit()
+    await broadcast_order(SOrderResponse.model_validate(order, from_attributes=True).model_dump_json())
     return SOrderResponse.model_validate(order, from_attributes=True)
 
 
