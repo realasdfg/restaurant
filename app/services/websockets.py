@@ -1,22 +1,38 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import List, Dict
 
+from app.schemas.orders import SOrderResponse, STableResponse
+
 router = APIRouter()
 
 active_connections: Dict[str, List[WebSocket]] = {
     "orders": [],
-    "tables": []
+    "tables": [],
 }
 
+order_connections: Dict[int, List[WebSocket]] = {}
 
-async def handle_websocket(websocket: WebSocket, connection_type: str):
+
+async def handle_websocket(websocket: WebSocket, connection_type: str, order_id: int = None):
     await websocket.accept()
-    active_connections[connection_type].append(websocket)
+
+    if order_id is not None:
+        if order_id not in order_connections:
+            order_connections[order_id] = []
+        order_connections[order_id].append(websocket)
+    else:
+        active_connections[connection_type].append(websocket)
+
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        active_connections[connection_type].remove(websocket)
+        if order_id is not None:
+            order_connections[order_id].remove(websocket)
+            if not order_connections[order_id]:
+                del order_connections[order_id]
+        else:
+            active_connections[connection_type].remove(websocket)
 
 
 @router.websocket("/ws/orders")
@@ -29,14 +45,25 @@ async def websocket_tables(websocket: WebSocket):
     await handle_websocket(websocket, "tables")
 
 
+@router.websocket("/ws/orders/{order_id}")
+async def websocket_order_detail(websocket: WebSocket, order_id: int):
+    await handle_websocket(websocket, "orders", order_id=order_id)
+
+
 async def broadcast_update(connection_type: str, data):
     for connection in active_connections[connection_type]:
-        await connection.send_json(data)
+        await connection.send_text(data)
 
 
 async def broadcast_order(order):
-    await broadcast_update("orders", order)
+    json_data = SOrderResponse.model_validate(order, from_attributes=True).model_dump_json()
+    await broadcast_update("orders", json_data)
+
+    order_id = order.id
+    if order_id in order_connections:
+        for connection in order_connections[order_id]:
+            await connection.send_text(json_data)
 
 
 async def broadcast_table(table):
-    await broadcast_update("tables", table)
+    await broadcast_update("tables", STableResponse.model_validate(table, from_attributes=True).model_dump_json())

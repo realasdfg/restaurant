@@ -109,10 +109,9 @@ async def add_order(order: SOrderCreation,
     try:
         await session.commit()
         await session.refresh(new_order)
-        await broadcast_order(SOrderResponse.model_validate(new_order, from_attributes=True).model_dump_json())
+        await broadcast_order(new_order)
         if order.type == OrderTypeEnum.DINEIN:
-            await broadcast_table(
-                STableResponse.model_validate(new_order.table, from_attributes=True).model_dump_json())
+            await broadcast_table(new_order.table)
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to create order due to a database error.")
@@ -195,10 +194,10 @@ async def update_order(order_id: int,
             order.table.is_free = False
 
     await session.commit()
-    await broadcast_order(SOrderResponse.model_validate(order, from_attributes=True).model_dump_json())
-    await broadcast_table(STableResponse.model_validate(order.table, from_attributes=True).model_dump_json())
+    await broadcast_order(order)
+    await broadcast_table(order.table)
     if old_table:
-        await broadcast_table(STableResponse.model_validate(old_table, from_attributes=True).model_dump_json())
+        await broadcast_table(old_table)
     return SOrderResponse.model_validate(order, from_attributes=True)
 
 @router.patch('/orders/{order_id}/menu-items/{item_id}')
