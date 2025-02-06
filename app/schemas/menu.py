@@ -45,4 +45,3 @@ class SMenuItemResponse(SMenuItem):
 
 class SMenuItemFilter(BaseModel):
     name: str | None = None
-    category_id: int | None = None
