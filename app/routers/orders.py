@@ -234,6 +234,7 @@ async def add_or_update_order_item(order_id: int, item_id: int,
     try:
         await session.commit()
         await session.refresh(order_item)
+        await broadcast_order(order_item=order_item)
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to add item to the order due to a database error.")
@@ -272,4 +273,5 @@ async def delete_order_item(order_id: int, item_id: int,
         raise HTTPException(status_code=404, detail="Order, menu item or item in order does not exist.")
     await session.delete(order_item)
     await session.commit()
+    await broadcast_order(order_item=order_item, deleted=True)
     return {"status": 200, "message": "Order item deleted"}
