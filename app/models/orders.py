@@ -29,6 +29,7 @@ class Order(Base):
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     paid: Mapped[bool] = mapped_column(default=False)
     paid_at: Mapped[datetime | None] = mapped_column()
+    paid_by: Mapped[int | None] = mapped_column(ForeignKey('users.id'))
     paid_by_card: Mapped[Decimal] = mapped_column(DECIMAL(7, 2), default=0)
     paid_by_cash: Mapped[Decimal] = mapped_column(DECIMAL(7, 2), default=0)
     table_id: Mapped[int | None] = mapped_column(ForeignKey('tables.id'))

@@ -34,6 +34,7 @@ class SOrder(SOrderCreation):
     paid_at: datetime | None
     paid_by_card: Decimal = 0
     paid_by_cash: Decimal = 0
+    paid_by: int | None
 
 
 class SOrderEdit(SOrderCreation):
