@@ -168,6 +168,7 @@ async def update_order(order_id: int,
         order.paid_at = datetime.now()
         order.paid_by_cash = order_data.paid_by_cash
         order.paid_by_card = order_data.paid_by_card
+        order.paid_by = current_user.id
         if order.table:
             order.table.is_free = True
     else:
@@ -195,7 +196,8 @@ async def update_order(order_id: int,
 
     await session.commit()
     await broadcast_order(order)
-    await broadcast_table(order.table)
+    if order.table:
+        await broadcast_table(order.table)
     if old_table:
         await broadcast_table(old_table)
     return SOrderResponse.model_validate(order, from_attributes=True)
