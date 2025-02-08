@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_async_session
 from app.models.users import User
 from app.schemas.users import RoleEnum, SUserResponse, SUserEdit
+from app.services.auth import get_current_user
 from app.services.roles import role_required
 
 router = APIRouter(
@@ -19,6 +20,11 @@ async def get_all_users(session: AsyncSession = Depends(get_async_session),
     result = await session.execute(select(User))
     users = result.scalars().all()
     return [SUserResponse.model_validate(user, from_attributes=True) for user in users]
+
+
+@router.get('/me')
+async def get_me(current_user: User = Depends(get_current_user)) -> SUserResponse:
+    return SUserResponse.model_validate(current_user, from_attributes=True)
 
 
 @router.get('/{user_id}')
