@@ -4,13 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_async_session
 from app.models.menu import MenuItem
 from app.models.orders import Table, Order, OrderItem
 from app.models.users import User
 from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit, \
-    SOrderItemResponse, STableCreation
+    SOrderItemResponse, STableCreation, SOrderFilter
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import role_required, has_access
@@ -119,14 +120,24 @@ async def add_order(order: SOrderCreation,
 
 
 @router.get('/orders')
-async def get_orders(current_only: bool, session: AsyncSession = Depends(get_async_session),
+async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = Depends(get_async_session),
                      current_user: User = Depends(get_current_user)) -> list[SOrderResponse]:
-    if not current_only:
+    if not filters.current_only or filters.paid_only or filters.from_paid_date or filters.to_paid_date or filters.type:
         if not await has_access(current_user.role, RoleEnum.ADMIN):
             raise HTTPException(status_code=403, detail=f"Access denied")
-        query = select(Order)
-    else:
-        query = select(Order).where(Order.paid == False)
+
+    query = select(Order)
+    if filters.current_only:
+        query = query.where(Order.paid == False)
+    elif filters.paid_only:
+        query = query.where(Order.paid == True)
+    if filters.from_paid_date:
+        query = query.where(Order.paid_at >= filters.from_paid_date)
+    if filters.to_paid_date:
+        query = query.where(Order.paid_at <= filters.to_paid_date)
+    if filters.type:
+        query = query.where(Order.type == filters.type)
+
     result = await session.execute(query.order_by(Order.created_at.desc()))
     orders = result.scalars().all()
     return [SOrderResponse.model_validate(order, from_attributes=True) for order in orders]

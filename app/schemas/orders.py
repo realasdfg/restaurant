@@ -2,7 +2,8 @@ import enum
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from fastapi import HTTPException
+from pydantic import BaseModel, Field, model_validator
 
 
 class OrderTypeEnum(enum.Enum):
@@ -47,6 +48,21 @@ class SOrderEdit(SOrderCreation):
 
 class SOrderResponse(SOrder):
     id: int
+
+
+class SOrderFilter(BaseModel):
+    current_only: bool | None = None
+    paid_only: bool | None = None
+    from_paid_date: datetime | None = None
+    to_paid_date: datetime | None = None
+    type: OrderTypeEnum | None = None
+    order_total_sum: bool | None = None
+
+    @model_validator(mode='after')
+    def check_current_and_paid(self):
+        if self.current_only and self.paid_only:
+            raise HTTPException(status_code=400, detail="current_only and paid_only cannot both be True.")
+        return self
 
 
 class SOrderItem(BaseModel):

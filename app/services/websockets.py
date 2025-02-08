@@ -45,7 +45,6 @@ async def handle_websocket(websocket: WebSocket, connection_type: str, order_id:
 @router.websocket("/ws/orders")
 async def websocket_orders(websocket: WebSocket, token: str = Query(...),
                            session: AsyncSession = Depends(get_async_session)):
-    print(active_connections)
     try:
         await get_current_user(session, token)
         await handle_websocket(websocket, "orders")
