@@ -122,7 +122,8 @@ async def add_order(order: SOrderCreation,
 @router.get('/orders')
 async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = Depends(get_async_session),
                      current_user: User = Depends(get_current_user)) -> list[SOrderResponse]:
-    if not filters.current_only or filters.paid_only or filters.from_paid_date or filters.to_paid_date or filters.type:
+    if (not filters.current_only or filters.paid_only or filters.type or filters.from_created_date or
+            filters.from_created_date or filters.created_by or filters.paid_by):
         if not await has_access(current_user.role, RoleEnum.ADMIN):
             raise HTTPException(status_code=403, detail=f"Access denied")
 
@@ -131,12 +132,17 @@ async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = 
         query = query.where(Order.paid == False)
     elif filters.paid_only:
         query = query.where(Order.paid == True)
-    if filters.from_paid_date:
-        query = query.where(Order.paid_at >= filters.from_paid_date)
-    if filters.to_paid_date:
-        query = query.where(Order.paid_at <= filters.to_paid_date)
+    if filters.from_created_date:
+        query = query.where(Order.created_at >= filters.from_created_date)
+    if filters.to_created_date:
+        query = query.where(Order.created_at <= filters.to_created_date)
     if filters.type:
         query = query.where(Order.type == filters.type)
+    if filters.created_by:
+        query = query.where(Order.created_by == filters.created_by)
+    if filters.paid_by:
+        query = query.where(Order.paid_by == filters.paid_by)
+
 
     result = await session.execute(query.order_by(Order.created_at.desc()))
     orders = result.scalars().all()
@@ -212,6 +218,7 @@ async def update_order(order_id: int,
     if old_table:
         await broadcast_table(old_table)
     return SOrderResponse.model_validate(order, from_attributes=True)
+
 
 @router.patch('/orders/{order_id}/menu-items/{item_id}')
 async def add_or_update_order_item(order_id: int, item_id: int,

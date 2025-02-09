@@ -53,13 +53,14 @@ class SOrderResponse(SOrder):
 class SOrderFilter(BaseModel):
     current_only: bool | None = None
     paid_only: bool | None = None
-    from_paid_date: datetime | None = None
-    to_paid_date: datetime | None = None
+    from_created_date: datetime | None = None
+    to_created_date: datetime | None = None
     type: OrderTypeEnum | None = None
-    order_total_sum: bool | None = None
+    created_by: int | None = None
+    paid_by: int | None = None
 
     @model_validator(mode='after')
-    def check_current_and_paid(self):
+    def validate_model(self):
         if self.current_only and self.paid_only:
             raise HTTPException(status_code=400, detail="current_only and paid_only cannot both be True.")
         return self
