@@ -5,6 +5,8 @@ from decimal import Decimal
 from fastapi import HTTPException
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.menu import MenuItemTypeEnum
+
 
 class OrderTypeEnum(enum.Enum):
     DINEIN = "dinein"
@@ -74,6 +76,8 @@ class SOrderItem(BaseModel):
     quantity: int
     cost: Decimal
     price: Decimal
+    type: MenuItemTypeEnum
+    weight: int
 
 
 class SOrderItemResponse(SOrderItem):

@@ -248,7 +248,9 @@ async def add_or_update_order_item(order_id: int, item_id: int,
             menu_item_id=item_id,
             quantity=quantity,
             cost=menu_item.cost,
-            price=menu_item.price
+            price=menu_item.price,
+            type=menu_item.type,
+            weight=menu_item.weight,
         )
         session.add(order_item)
     try:

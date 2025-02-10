@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from decimal import Decimal
 
 from app.database import Base
+from app.schemas.menu import MenuItemTypeEnum
 from app.schemas.orders import OrderTypeEnum
 
 
@@ -49,6 +50,8 @@ class OrderItem(Base):
     quantity: Mapped[int] = mapped_column()
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
+    type: Mapped[MenuItemTypeEnum] = mapped_column(SqlEnum(MenuItemTypeEnum))
+    weight: Mapped[int] = mapped_column()
 
     order: Mapped['Order'] = relationship('Order', back_populates='order_items', lazy="selectin")
     menu_item: Mapped['MenuItem'] = relationship('MenuItem', back_populates='order_items', lazy="selectin")
