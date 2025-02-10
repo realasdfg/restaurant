@@ -13,6 +13,7 @@ class MenuCategory(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
+    is_deleted: Mapped[bool] = mapped_column(default=False)
 
     items: Mapped[list['MenuItem']] = relationship(
         'MenuItem', back_populates='category', cascade='all, delete-orphan', lazy="selectin"
@@ -32,6 +33,7 @@ class MenuItem(Base):
     weight: Mapped[int] = mapped_column()
     available: Mapped[bool] = mapped_column(default=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('menu_categories.id'))
+    is_deleted: Mapped[bool] = mapped_column(default=False)
 
     category: Mapped['MenuCategory'] = relationship('MenuCategory', back_populates='items', lazy="selectin")
     order_items: Mapped[list['OrderItem']] = relationship('OrderItem', back_populates='menu_item', lazy="selectin")

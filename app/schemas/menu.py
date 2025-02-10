@@ -11,6 +11,7 @@ class MenuItemTypeEnum(enum.Enum):
 
 class SMenuCategory(BaseModel):
     name: str = Field(..., max_length=50)
+    is_deleted: bool = False
 
 
 class SMenuCategoryResponse(SMenuCategory):
@@ -27,6 +28,7 @@ class SMenuItem(BaseModel):
     weight: int
     available: bool = True
     category_id: int
+    is_deleted: bool = False
 
 
 class SMenuItemEdit(SMenuItem):

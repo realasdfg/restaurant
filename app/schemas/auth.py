@@ -1,9 +1,9 @@
 from pydantic import Field, BaseModel
 
-from app.schemas.users import SUser, SUserResponse
+from app.schemas.users import SBaseUser, SUserResponse
 
 
-class SUserRegister(SUser):
+class SUserRegister(SBaseUser):
     password: str = Field(min_length=8)
 
 

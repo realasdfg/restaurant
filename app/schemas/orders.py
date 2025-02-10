@@ -19,6 +19,7 @@ class STableCreation(BaseModel):
 
 class STable(STableCreation):
     is_free: bool = True
+    is_deleted: bool = False
 
 
 class STableResponse(STable):

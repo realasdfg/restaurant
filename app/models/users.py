@@ -17,3 +17,4 @@ class User(Base):
     last_name: Mapped[str] = mapped_column(String(50))
     role: Mapped[RoleEnum] = mapped_column(SqlEnum(RoleEnum))
     created_at: Mapped[datetime] = mapped_column(default=func.now())
+    is_deleted: Mapped[bool] = mapped_column(default=False)
