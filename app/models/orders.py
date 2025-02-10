@@ -32,6 +32,7 @@ class Order(Base):
     paid_by: Mapped[int | None] = mapped_column(ForeignKey('users.id'))
     paid_by_card: Mapped[Decimal] = mapped_column(DECIMAL(7, 2), default=0)
     paid_by_cash: Mapped[Decimal] = mapped_column(DECIMAL(7, 2), default=0)
+    paid_online: Mapped[bool] = mapped_column(default=False)
     table_id: Mapped[int | None] = mapped_column(ForeignKey('tables.id'))
 
 
