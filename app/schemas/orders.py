@@ -70,16 +70,8 @@ class SOrderItem(BaseModel):
     order_id: int
     menu_item_id: int
     quantity: int
-
-
-class SMenuItemResponse(SOrderItem):
-    id: int
-
-
-class SOrderItem(BaseModel):
-    order_id: int
-    menu_item_id: int
-    quantity: int
+    cost: Decimal
+    price: Decimal
 
 
 class SOrderItemResponse(SOrderItem):

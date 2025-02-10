@@ -24,6 +24,7 @@ class SMenuItem(BaseModel):
     price: Decimal
     cost: Decimal
     type: MenuItemTypeEnum
+    weight: int
     available: bool = True
     category_id: int
 
@@ -35,6 +36,7 @@ class SMenuItemEdit(SMenuItem):
     price: Decimal | None = None
     cost: Decimal | None = None
     type: MenuItemTypeEnum | None = None
+    weight: int | None = None
     available: bool | None = None
     category_id: int | None = None
 

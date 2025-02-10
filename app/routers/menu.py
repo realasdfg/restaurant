@@ -110,6 +110,7 @@ async def add_menu_item(menu_item: SMenuItem,
         price=menu_item.price,
         cost=menu_item.cost,
         type=menu_item.type,
+        weight=menu_item.weight,
         available=menu_item.available,
         category_id=menu_item.category_id
     )
@@ -165,6 +166,8 @@ async def update_menu_item(item_id: int,
         item.cost = menu_item.cost
     if menu_item.type:
         item.type = menu_item.type
+    if menu_item.weight:
+        item.weight = menu_item.weight
     if menu_item.available:
         item.available = menu_item.available
     if menu_item.category_id:

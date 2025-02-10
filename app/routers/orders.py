@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.database import get_async_session
 from app.models.menu import MenuItem
@@ -143,7 +142,6 @@ async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = 
     if filters.paid_by:
         query = query.where(Order.paid_by == filters.paid_by)
 
-
     result = await session.execute(query.order_by(Order.created_at.desc()))
     orders = result.scalars().all()
     return [SOrderResponse.model_validate(order, from_attributes=True) for order in orders]
@@ -248,7 +246,9 @@ async def add_or_update_order_item(order_id: int, item_id: int,
         order_item = OrderItem(
             order_id=order_id,
             menu_item_id=item_id,
-            quantity=quantity
+            quantity=quantity,
+            cost=menu_item.cost,
+            price=menu_item.price
         )
         session.add(order_item)
     try:

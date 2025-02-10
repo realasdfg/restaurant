@@ -46,6 +46,8 @@ class OrderItem(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'))
     menu_item_id: Mapped[int] = mapped_column(ForeignKey('menu_items.id'))
     quantity: Mapped[int] = mapped_column()
+    cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
+    price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
 
     order: Mapped['Order'] = relationship('Order', back_populates='order_items', lazy="selectin")
     menu_item: Mapped['MenuItem'] = relationship('MenuItem', back_populates='order_items', lazy="selectin")

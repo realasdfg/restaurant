@@ -29,6 +29,7 @@ class MenuItem(Base):
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     type: Mapped[MenuItemTypeEnum] = mapped_column(SqlEnum(MenuItemTypeEnum))
+    weight: Mapped[int] = mapped_column()
     available: Mapped[bool] = mapped_column(default=True)
     category_id: Mapped[int] = mapped_column(ForeignKey('menu_categories.id'))
 
