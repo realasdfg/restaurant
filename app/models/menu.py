@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, DECIMAL, Enum as SqlEnum
+from sqlalchemy import ForeignKey, String, DECIMAL, Enum as SqlEnum, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
@@ -12,11 +12,15 @@ class MenuCategory(Base):
     __tablename__ = 'menu_categories'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
     is_deleted: Mapped[bool] = mapped_column(default=False)
 
     items: Mapped[list['MenuItem']] = relationship(
         'MenuItem', back_populates='category', cascade='all, delete-orphan', lazy="selectin"
+    )
+
+    __table_args__ = (
+        Index('unique_menu_category_name', 'name', unique=True, postgresql_where=(text("is_deleted = FALSE"))),
     )
 
 

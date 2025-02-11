@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, DECIMAL, func, Enum as SqlEnum
+from sqlalchemy import ForeignKey, String, DECIMAL, func, Enum as SqlEnum, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
@@ -14,12 +14,16 @@ class Table(Base):
     __tablename__ = 'tables'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(20), unique=True)
+    name: Mapped[str] = mapped_column(String(20))
     is_free: Mapped[bool] = mapped_column(default=True)
     is_deleted: Mapped[bool] = mapped_column(default=False)
 
     orders: Mapped[list['Order']] = relationship(
         'Order', back_populates='table', cascade='all, delete-orphan', lazy="selectin"
+    )
+
+    __table_args__ = (
+        Index('unique_table_name', 'name', unique=True, postgresql_where=(text("is_deleted = FALSE"))),
     )
 
 class Order(Base):
