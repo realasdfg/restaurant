@@ -5,7 +5,7 @@ from app.routers.menu import router as menu_router
 from app.routers.auth import router as auth_router
 from app.routers.users import router as users_router
 from app.routers.orders import router as orders_router
-from app.services.websockets import router as websockets_router
+from app.routers.websockets import router as websockets_router
 
 def create_app():
     app = FastAPI(root_path='/api/v1')
