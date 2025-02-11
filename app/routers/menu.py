@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
 from app.models.menu import MenuCategory, MenuItem
 from app.models.users import User
-from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse, SMenuItemEdit, \
-    SMenuItemFilter
+from app.schemas.menu import SMenuItemAdd, SMenuCategory, SMenuItem, SMenuItemEdit, SMenuCategoryAdd
 from app.schemas.users import RoleEnum
 from app.services.roles import get_current_user_if_role
 
@@ -18,9 +17,9 @@ router = APIRouter(
 
 
 @router.post('/menu-categories')
-async def add_menu_category(menu_category: SMenuCategory,
+async def add_menu_category(menu_category: SMenuCategoryAdd,
                             session: AsyncSession = Depends(get_async_session),
-                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
+                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategory:
     new_category = MenuCategory(name=menu_category.name)
     session.add(new_category)
     try:
@@ -28,31 +27,31 @@ async def add_menu_category(menu_category: SMenuCategory,
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Category already exists")
-    return SMenuCategoryResponse.model_validate(new_category, from_attributes=True)
+    return SMenuCategory.model_validate(new_category, from_attributes=True)
 
 
 @router.get('/menu-categories')
-async def get_menu_categories(session: AsyncSession = Depends(get_async_session)) -> list[SMenuCategoryResponse]:
+async def get_menu_categories(session: AsyncSession = Depends(get_async_session)) -> list[SMenuCategory]:
     result = await session.execute(select(MenuCategory))
     categories = result.scalars().all()
-    return [SMenuCategoryResponse.model_validate(cat, from_attributes=True) for cat in categories]
+    return [SMenuCategory.model_validate(cat, from_attributes=True) for cat in categories]
 
 
 @router.get('/menu-categories/{category_id}')
 async def get_menu_category(category_id: int,
-                            session: AsyncSession = Depends(get_async_session)) -> SMenuCategoryResponse:
+                            session: AsyncSession = Depends(get_async_session)) -> SMenuCategory:
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
     category = result.scalar_one_or_none()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    return SMenuCategoryResponse.model_validate(category, from_attributes=True)
+    return SMenuCategory.model_validate(category, from_attributes=True)
 
 
 @router.put('/menu-categories/{category_id}')
 async def update_menu_category(category_id: int,
-                               menu_category: SMenuCategory,
+                               menu_category: SMenuCategoryAdd,
                                session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
+                               current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategory:
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
     category = result.scalar_one_or_none()
     if not category:
@@ -63,7 +62,7 @@ async def update_menu_category(category_id: int,
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Category already exists")
-    return SMenuCategoryResponse.model_validate(category, from_attributes=True)
+    return SMenuCategory.model_validate(category, from_attributes=True)
 
 
 @router.delete('/menu-categories/{category_id}')
@@ -81,16 +80,16 @@ async def delete_menu_category(category_id: int, session: AsyncSession = Depends
 @router.get('/menu-categories/{category_id}/menu-items')
 async def get_menu_items_by_category(category_id: int, session: AsyncSession = Depends(get_async_session),
                                      current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> list[
-    SMenuItemResponse]:
+    SMenuItem]:
     result = await session.execute(select(MenuItem).where(MenuItem.category_id == category_id))
     items = result.scalars().all()
-    return [SMenuItemResponse.model_validate(item, from_attributes=True) for item in items]
+    return [SMenuItem.model_validate(item, from_attributes=True) for item in items]
 
 
 @router.post('/menu-items')
-async def add_menu_item(menu_item: SMenuItem,
+async def add_menu_item(menu_item: SMenuItemAdd,
                         session: AsyncSession = Depends(get_async_session),
-                        current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItemResponse:
+                        current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItem:
     existing_item_query = select(MenuItem).where(MenuItem.name == menu_item.name)
     result = await session.execute(existing_item_query)
     existing_item = result.scalar_one_or_none()
@@ -121,35 +120,31 @@ async def add_menu_item(menu_item: SMenuItem,
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to create item due to a database error.")
-    return SMenuItemResponse.model_validate(new_item, from_attributes=True)
+    return SMenuItem.model_validate(new_item, from_attributes=True)
 
 
 @router.get('/menu-items')
-async def get_menu_items(filters: SMenuItemFilter = Depends(),
-                         session: AsyncSession = Depends(get_async_session)) -> list[SMenuItemResponse]:
+async def get_menu_items(session: AsyncSession = Depends(get_async_session)) -> list[SMenuItem]:
     query = select(MenuItem)
-    if filters.name:
-        query = query.where(func.lower(MenuItem.name).ilike(f"%{filters.name.lower()}%"))
-
     result = await session.execute(query)
     items = result.scalars().all()
-    return [SMenuItemResponse.model_validate(item, from_attributes=True) for item in items]
+    return [SMenuItem.model_validate(item, from_attributes=True) for item in items]
 
 
 @router.get('/menu-items/{item_id}')
-async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session)) -> SMenuItemResponse:
+async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session)) -> SMenuItem:
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    return SMenuItemResponse.model_validate(item, from_attributes=True)
+    return SMenuItem.model_validate(item, from_attributes=True)
 
 
 @router.patch('/menu-items/{item_id}')
 async def update_menu_item(item_id: int,
                            menu_item: SMenuItemEdit,
                            session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItemResponse:
+                           current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItem:
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
@@ -177,7 +172,7 @@ async def update_menu_item(item_id: int,
             raise HTTPException(status_code=404, detail="Category not found")
         item.category_id = menu_item.category_id
     await session.commit()
-    return SMenuItemResponse.model_validate(item, from_attributes=True)
+    return SMenuItem.model_validate(item, from_attributes=True)
 
 
 @router.delete('/menu-items/{item_id}')

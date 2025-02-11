@@ -16,16 +16,13 @@ class SBaseUser(BaseModel):
     role: RoleEnum = RoleEnum.STAFF
 
 
-class SUser(BaseModel):
+class SUser(SBaseUser):
+    id: int
     created_at: datetime
     is_deleted: bool = False
 
 
-class SUserResponse(SUser):
-    id: int
-
-
-class SUserEdit(SUser):
+class SUserEdit(SBaseUser):
     username: str | None = Field(None, max_length=50)
     first_name: str | None = Field(None, max_length=50)
     last_name: str | None = Field(None, max_length=50)

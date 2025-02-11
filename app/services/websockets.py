@@ -3,7 +3,7 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List, Dict
 
-from app.schemas.orders import SOrderResponse, STableResponse, SOrderItemResponse
+from app.schemas.orders import SOrder, STable, SOrderItemResponse
 
 active_connections: Dict[str, List[WebSocket]] = {
     "orders": [],
@@ -42,7 +42,7 @@ async def broadcast_update(connection_type: str, data):
 
 async def broadcast_order(order=None, order_item=None, deleted=False):
     if order:
-        json_data = SOrderResponse.model_validate(order, from_attributes=True).model_dump_json()
+        json_data = SOrder.model_validate(order, from_attributes=True).model_dump_json()
         await broadcast_update("orders", json_data)
 
         if order.id in order_connections:
@@ -60,4 +60,4 @@ async def broadcast_order(order=None, order_item=None, deleted=False):
 
 
 async def broadcast_table(table):
-    await broadcast_update("tables", STableResponse.model_validate(table, from_attributes=True).model_dump_json())
+    await broadcast_update("tables", STable.model_validate(table, from_attributes=True).model_dump_json())

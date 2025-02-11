@@ -7,7 +7,7 @@ from app.services.auth import get_user_by_username, create_jwt_token, get_passwo
 from app.database import get_async_session
 from app.models.users import User
 from app.schemas.auth import SUserLogin, SUserRegister, SUserLoginResponse, SToken
-from app.schemas.users import SUserResponse
+from app.schemas.users import SUser
 
 router = APIRouter(
     prefix="/auth",
@@ -27,7 +27,7 @@ async def register(user: SUserRegister = Depends(), session: AsyncSession = Depe
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
-    return SUserResponse.model_validate(new_user, from_attributes=True)
+    return SUser.model_validate(new_user, from_attributes=True)
 
 
 @router.post("/login")

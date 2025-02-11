@@ -9,16 +9,16 @@ class MenuItemTypeEnum(enum.Enum):
     BY_QUANTITY = "by_quantity"
 
 
-class SMenuCategory(BaseModel):
+class SMenuCategoryAdd(BaseModel):
     name: str = Field(..., max_length=50)
+
+
+class SMenuCategory(SMenuCategoryAdd):
+    id: int
     is_deleted: bool = False
 
 
-class SMenuCategoryResponse(SMenuCategory):
-    id: int
-
-
-class SMenuItem(BaseModel):
+class SMenuItemAdd(BaseModel):
     name: str = Field(..., max_length=100)
     description: str | None = None
     image: str | None = None
@@ -28,10 +28,9 @@ class SMenuItem(BaseModel):
     weight: int
     available: bool = True
     category_id: int
-    is_deleted: bool = False
 
 
-class SMenuItemEdit(SMenuItem):
+class SMenuItemEdit(SMenuItemAdd):
     name: str | None = Field(None, max_length=100)
     description: str | None = None
     image: str | None = None
@@ -43,9 +42,6 @@ class SMenuItemEdit(SMenuItem):
     category_id: int | None = None
 
 
-class SMenuItemResponse(SMenuItem):
+class SMenuItem(SMenuItemAdd):
     id: int
-
-
-class SMenuItemFilter(BaseModel):
-    name: str | None = None
+    is_deleted: bool = False

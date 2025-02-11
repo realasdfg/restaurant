@@ -13,36 +13,22 @@ class OrderTypeEnum(enum.Enum):
     TOGO = "togo"
 
 
-class STableCreation(BaseModel):
+class STableAdd(BaseModel):
     name: str = Field(..., max_length=20)
 
 
-class STable(STableCreation):
+class STable(STableAdd):
+    id: int
     is_free: bool = True
     is_deleted: bool = False
 
 
-class STableResponse(STable):
-    id: int
-
-
-class SOrderCreation(BaseModel):
+class SOrderAdd(BaseModel):
     type: OrderTypeEnum
     table_id: int | None = None
 
 
-class SOrder(SOrderCreation):
-    created_by: int
-    created_at: datetime
-    paid: bool = False
-    paid_at: datetime | None
-    paid_by_card: Decimal = 0
-    paid_by_cash: Decimal = 0
-    paid_online: bool = False
-    paid_by: int | None
-
-
-class SOrderEdit(SOrderCreation):
+class SOrderEdit(SOrderAdd):
     type: OrderTypeEnum | None = None
     table_id: int | None = None
     paid: bool | None = None
@@ -51,8 +37,16 @@ class SOrderEdit(SOrderCreation):
     paid_online: bool | None = None
 
 
-class SOrderResponse(SOrder):
+class SOrder(SOrderAdd):
     id: int
+    created_by: int
+    created_at: datetime
+    paid: bool = False
+    paid_at: datetime | None
+    paid_by_card: Decimal = 0
+    paid_by_cash: Decimal = 0
+    paid_online: bool = False
+    paid_by: int | None
 
 
 class SOrderFilter(BaseModel):
@@ -71,7 +65,8 @@ class SOrderFilter(BaseModel):
         return self
 
 
-class SOrderItem(BaseModel):
+class SOrderItemResponse(BaseModel):
+    id: int
     order_id: int
     menu_item_id: int
     quantity: int
@@ -79,7 +74,3 @@ class SOrderItem(BaseModel):
     price: Decimal
     type: MenuItemTypeEnum
     weight: int
-
-
-class SOrderItemResponse(SOrderItem):
-    id: int

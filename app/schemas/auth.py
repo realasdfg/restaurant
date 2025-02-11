@@ -1,6 +1,6 @@
 from pydantic import Field, BaseModel
 
-from app.schemas.users import SBaseUser, SUserResponse
+from app.schemas.users import SBaseUser, SUser
 
 
 class SUserRegister(SBaseUser):
@@ -18,7 +18,7 @@ class SToken(BaseModel):
     token_type: str
 
 
-class SUserLoginResponse(SToken, SUserResponse):
+class SUserLoginResponse(SToken, SUser):
     access_token: str | None = None
     refresh_token: str | None = None
     token_type: str | None = None

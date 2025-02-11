@@ -9,8 +9,8 @@ from app.database import get_async_session
 from app.models.menu import MenuItem
 from app.models.orders import Table, Order, OrderItem
 from app.models.users import User
-from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SOrderCreation, SOrderEdit, \
-    SOrderItemResponse, STableCreation, SOrderFilter
+from app.schemas.orders import STable, SOrder, OrderTypeEnum, SOrderAdd, SOrderEdit, \
+    SOrderItemResponse, STableAdd, SOrderFilter
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
 from app.services.roles import get_current_user_if_role, has_access
@@ -23,9 +23,9 @@ router = APIRouter(
 
 
 @router.post('/tables')
-async def add_table(table: STableCreation,
+async def add_table(table: STableAdd,
                     session: AsyncSession = Depends(get_async_session),
-                    current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> STableResponse:
+                    current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> STable:
     new_table = Table(name=table.name)
     session.add(new_table)
     try:
@@ -33,31 +33,31 @@ async def add_table(table: STableCreation,
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Table with this name already exists")
-    return STableResponse.model_validate(new_table, from_attributes=True)
+    return STable.model_validate(new_table, from_attributes=True)
 
 
 @router.get('/tables')
-async def get_tables(session: AsyncSession = Depends(get_async_session)) -> list[STableResponse]:
+async def get_tables(session: AsyncSession = Depends(get_async_session)) -> list[STable]:
     result = await session.execute(select(Table))
     tables = result.scalars().all()
-    return [STableResponse.model_validate(table, from_attributes=True) for table in tables]
+    return [STable.model_validate(table, from_attributes=True) for table in tables]
 
 
 @router.get('/tables/{table_id}')
 async def get_table(table_id: int,
-                    session: AsyncSession = Depends(get_async_session)) -> STableResponse:
+                    session: AsyncSession = Depends(get_async_session)) -> STable:
     result = await session.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
-    return STableResponse.model_validate(table, from_attributes=True)
+    return STable.model_validate(table, from_attributes=True)
 
 
 @router.put('/tables/{table_id}')
 async def update_table(table_id: int,
-                       table_data: STableCreation,
+                       table_data: STableAdd,
                        session: AsyncSession = Depends(get_async_session),
-                       current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> STableResponse:
+                       current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> STable:
     result = await session.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
@@ -68,7 +68,7 @@ async def update_table(table_id: int,
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Table with this name already exists")
-    return STableResponse.model_validate(table, from_attributes=True)
+    return STable.model_validate(table, from_attributes=True)
 
 
 @router.delete('/tables/{table_id}')
@@ -84,9 +84,9 @@ async def delete_table(table_id: int, session: AsyncSession = Depends(get_async_
 
 
 @router.post('/orders')
-async def add_order(order: SOrderCreation,
+async def add_order(order: SOrderAdd,
                     session: AsyncSession = Depends(get_async_session),
-                    current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrderResponse:
+                    current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
     if order.type == OrderTypeEnum.DINEIN and order.table_id is None:
         raise HTTPException(status_code=400, detail="Order with 'dine in' type must have table_id.")
     new_order = Order(
@@ -115,12 +115,12 @@ async def add_order(order: SOrderCreation,
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to create order due to a database error.")
-    return SOrderResponse.model_validate(new_order, from_attributes=True)
+    return SOrder.model_validate(new_order, from_attributes=True)
 
 
 @router.get('/orders')
 async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = Depends(get_async_session),
-                     current_user: User = Depends(get_current_user)) -> list[SOrderResponse]:
+                     current_user: User = Depends(get_current_user)) -> list[SOrder]:
     if (not filters.current_only or filters.paid_only or filters.type or filters.from_created_date or
             filters.from_created_date or filters.created_by or filters.paid_by):
         if not await has_access(current_user.role, RoleEnum.ADMIN):
@@ -144,26 +144,26 @@ async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = 
 
     result = await session.execute(query.order_by(Order.created_at.desc()))
     orders = result.scalars().all()
-    return [SOrderResponse.model_validate(order, from_attributes=True) for order in orders]
+    return [SOrder.model_validate(order, from_attributes=True) for order in orders]
 
 
 @router.get('/orders/{order_id}')
 async def get_order(order_id: int, session: AsyncSession = Depends(get_async_session),
-                    current_user: User = Depends(get_current_user)) -> SOrderResponse:
+                    current_user: User = Depends(get_current_user)) -> SOrder:
     result = await session.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.paid and not await has_access(current_user.role, RoleEnum.ADMIN):
         raise HTTPException(status_code=403, detail=f"Access denied")
-    return SOrderResponse.model_validate(order, from_attributes=True)
+    return SOrder.model_validate(order, from_attributes=True)
 
 
 @router.patch('/orders/{order_id}')
 async def update_order(order_id: int,
                        order_data: SOrderEdit,
                        session: AsyncSession = Depends(get_async_session),
-                       current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrderResponse:
+                       current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
     result = await session.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
@@ -215,7 +215,7 @@ async def update_order(order_id: int,
         await broadcast_table(order.table)
     if old_table:
         await broadcast_table(old_table)
-    return SOrderResponse.model_validate(order, from_attributes=True)
+    return SOrder.model_validate(order, from_attributes=True)
 
 
 @router.patch('/orders/{order_id}/menu-items/{item_id}')
