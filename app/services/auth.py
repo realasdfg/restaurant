@@ -28,7 +28,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 async def create_jwt_token(data: dict, token_type: str = 'access', expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if token_type == 'access':
-        expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=settings.access_token_expires_minutes))
+        expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=settings.access_token_expires_hours))
     else:
         expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=settings.refresh_token_expires_days))
     to_encode.update({'exp': expire, 'type': f'{token_type}'})

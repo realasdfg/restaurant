@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     db_uri: str
     secret_key: str
     jwt_algorithm: str = 'HS256'
-    access_token_expires_minutes: int = 30
+    access_token_expires_hours: int = 2
     refresh_token_expires_days: int = 3
 
     # model_config = SettingsConfigDict(env_file=".env")
