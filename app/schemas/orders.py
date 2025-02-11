@@ -14,7 +14,7 @@ class OrderTypeEnum(enum.Enum):
 
 
 class STableAdd(BaseModel):
-    name: str = Field(..., max_length=20)
+    name: str = Field(..., min_length=1, max_length=20)
 
 
 class STable(STableAdd):
@@ -65,7 +65,7 @@ class SOrderFilter(BaseModel):
         return self
 
 
-class SOrderItemResponse(BaseModel):
+class SOrderItem(BaseModel):
     id: int
     order_id: int
     menu_item_id: int

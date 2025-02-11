@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, DECIMAL, Enum as SqlEnum, Index, text
+from sqlalchemy import ForeignKey, String, DECIMAL, Enum as SqlEnum, Index, text, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
@@ -21,6 +21,7 @@ class MenuCategory(Base):
 
     __table_args__ = (
         Index('unique_menu_category_name', 'name', unique=True, postgresql_where=(text("is_deleted = FALSE"))),
+        CheckConstraint("LENGTH(name) >= 1", name="menu_categories_check_name_length"),
     )
 
 
@@ -41,3 +42,7 @@ class MenuItem(Base):
 
     category: Mapped['MenuCategory'] = relationship('MenuCategory', back_populates='items', lazy="selectin")
     order_items: Mapped[list['OrderItem']] = relationship('OrderItem', back_populates='menu_item', lazy="selectin")
+
+    __table_args__ = (
+        CheckConstraint("LENGTH(name) >= 1", name="menu_items_check_name_length"),
+    )

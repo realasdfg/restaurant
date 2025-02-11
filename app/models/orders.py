@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, DECIMAL, func, Enum as SqlEnum, Index, text
+from sqlalchemy import ForeignKey, String, DECIMAL, func, Enum as SqlEnum, Index, text, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from decimal import Decimal
@@ -24,6 +24,7 @@ class Table(Base):
 
     __table_args__ = (
         Index('unique_table_name', 'name', unique=True, postgresql_where=(text("is_deleted = FALSE"))),
+        CheckConstraint("LENGTH(name) >= 1", name="tables_check_name_length"),
     )
 
 class Order(Base):

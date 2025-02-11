@@ -10,7 +10,7 @@ class MenuItemTypeEnum(enum.Enum):
 
 
 class SMenuCategoryAdd(BaseModel):
-    name: str = Field(..., max_length=50)
+    name: str = Field(..., min_length=1, max_length=50)
 
 
 class SMenuCategory(SMenuCategoryAdd):
@@ -19,7 +19,7 @@ class SMenuCategory(SMenuCategoryAdd):
 
 
 class SMenuItemAdd(BaseModel):
-    name: str = Field(..., max_length=100)
+    name: str = Field(..., min_length=1, max_length=100)
     description: str | None = None
     image: str | None = None
     price: Decimal
@@ -31,7 +31,7 @@ class SMenuItemAdd(BaseModel):
 
 
 class SMenuItemEdit(SMenuItemAdd):
-    name: str | None = Field(None, max_length=100)
+    name: str | None = Field(None, min_length=1, max_length=100)
     description: str | None = None
     image: str | None = None
     price: Decimal | None = None

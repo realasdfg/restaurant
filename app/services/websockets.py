@@ -3,7 +3,7 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List, Dict
 
-from app.schemas.orders import SOrder, STable, SOrderItemResponse
+from app.schemas.orders import SOrder, STable, SOrderItem
 
 active_connections: Dict[str, List[WebSocket]] = {
     "orders": [],
@@ -53,7 +53,7 @@ async def broadcast_order(order=None, order_item=None, deleted=False):
         if deleted:
             json_data = json.dumps({'id': order_item.id, 'deleted': True})
         else:
-            json_data = SOrderItemResponse.model_validate(order_item, from_attributes=True).model_dump_json()
+            json_data = SOrderItem.model_validate(order_item, from_attributes=True).model_dump_json()
         if order_item.order.id in order_connections:
             for connection in order_connections[order_item.order.id]:
                 await connection.send_text(json_data)

@@ -10,9 +10,9 @@ class RoleEnum(enum.Enum):
 
 
 class SBaseUser(BaseModel):
-    username: str = Field(max_length=50)
-    first_name: str = Field(max_length=50)
-    last_name: str = Field(max_length=50)
+    username: str = Field(min_length=3, max_length=50)
+    first_name: str = Field(min_length=1, max_length=50)
+    last_name: str = Field(min_length=1, max_length=50)
     role: RoleEnum = RoleEnum.STAFF
 
 
@@ -23,7 +23,7 @@ class SUser(SBaseUser):
 
 
 class SUserEdit(SBaseUser):
-    username: str | None = Field(None, max_length=50)
-    first_name: str | None = Field(None, max_length=50)
-    last_name: str | None = Field(None, max_length=50)
+    username: str | None = Field(None, min_length=3, max_length=50)
+    first_name: str | None = Field(None, min_length=1, max_length=50)
+    last_name: str | None = Field(None, min_length=1, max_length=50)
     role: RoleEnum | None = None
