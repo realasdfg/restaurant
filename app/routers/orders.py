@@ -13,7 +13,7 @@ from app.schemas.orders import STableResponse, SOrderResponse, OrderTypeEnum, SO
     SOrderItemResponse, STableCreation, SOrderFilter
 from app.schemas.users import RoleEnum
 from app.services.auth import get_current_user
-from app.services.roles import role_required, has_access
+from app.services.roles import get_current_user_if_role, has_access
 from app.services.websockets import broadcast_order, broadcast_table
 
 router = APIRouter(
@@ -25,7 +25,7 @@ router = APIRouter(
 @router.post('/tables')
 async def add_table(table: STableCreation,
                     session: AsyncSession = Depends(get_async_session),
-                    current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> STableResponse:
+                    current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> STableResponse:
     new_table = Table(name=table.name)
     session.add(new_table)
     try:
@@ -57,7 +57,7 @@ async def get_table(table_id: int,
 async def update_table(table_id: int,
                        table_data: STableCreation,
                        session: AsyncSession = Depends(get_async_session),
-                       current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> STableResponse:
+                       current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> STableResponse:
     result = await session.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
@@ -73,7 +73,7 @@ async def update_table(table_id: int,
 
 @router.delete('/tables/{table_id}')
 async def delete_table(table_id: int, session: AsyncSession = Depends(get_async_session),
-                       current_user: User = Depends(role_required(RoleEnum.ADMIN))):
+                       current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
     result = await session.execute(select(Table).where(Table.id == table_id))
     table = result.scalar_one_or_none()
     if not table:
@@ -86,7 +86,7 @@ async def delete_table(table_id: int, session: AsyncSession = Depends(get_async_
 @router.post('/orders')
 async def add_order(order: SOrderCreation,
                     session: AsyncSession = Depends(get_async_session),
-                    current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderResponse:
+                    current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrderResponse:
     if order.type == OrderTypeEnum.DINEIN and order.table_id is None:
         raise HTTPException(status_code=400, detail="Order with 'dine in' type must have table_id.")
     new_order = Order(
@@ -163,7 +163,7 @@ async def get_order(order_id: int, session: AsyncSession = Depends(get_async_ses
 async def update_order(order_id: int,
                        order_data: SOrderEdit,
                        session: AsyncSession = Depends(get_async_session),
-                       current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderResponse:
+                       current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrderResponse:
     result = await session.execute(select(Order).where(Order.id == order_id))
     order = result.scalar_one_or_none()
     if not order:
@@ -222,7 +222,7 @@ async def update_order(order_id: int,
 async def add_or_update_order_item(order_id: int, item_id: int,
                                    quantity: int | None = None,
                                    session: AsyncSession = Depends(get_async_session),
-                                   current_user: User = Depends(role_required(RoleEnum.STAFF))) -> SOrderItemResponse:
+                                   current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrderItemResponse:
     order_item_result = await session.execute(select(OrderItem)
                                               .where(OrderItem.order_id == order_id)
                                               .where(OrderItem.menu_item_id == item_id))
@@ -286,7 +286,7 @@ async def get_order_item(order_id: int, item_id: int,
 @router.delete('/orders/{order_id}/menu-items/{item_id}')
 async def delete_order_item(order_id: int, item_id: int,
                             session: AsyncSession = Depends(get_async_session),
-                            current_user: User = Depends(role_required(RoleEnum.STAFF))):
+                            current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))):
     order_item_result = await session.execute(select(OrderItem)
                                               .where(OrderItem.order_id == order_id)
                                               .where(OrderItem.menu_item_id == item_id))

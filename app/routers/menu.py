@@ -9,7 +9,7 @@ from app.models.users import User
 from app.schemas.menu import SMenuItem, SMenuCategory, SMenuCategoryResponse, SMenuItemResponse, SMenuItemEdit, \
     SMenuItemFilter
 from app.schemas.users import RoleEnum
-from app.services.roles import role_required
+from app.services.roles import get_current_user_if_role
 
 router = APIRouter(
     prefix='',
@@ -20,7 +20,7 @@ router = APIRouter(
 @router.post('/menu-categories')
 async def add_menu_category(menu_category: SMenuCategory,
                             session: AsyncSession = Depends(get_async_session),
-                            current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
+                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
     new_category = MenuCategory(name=menu_category.name)
     session.add(new_category)
     try:
@@ -52,7 +52,7 @@ async def get_menu_category(category_id: int,
 async def update_menu_category(category_id: int,
                                menu_category: SMenuCategory,
                                session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
+                               current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategoryResponse:
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
     category = result.scalar_one_or_none()
     if not category:
@@ -68,7 +68,7 @@ async def update_menu_category(category_id: int,
 
 @router.delete('/menu-categories/{category_id}')
 async def delete_menu_category(category_id: int, session: AsyncSession = Depends(get_async_session),
-                               current_user: User = Depends(role_required(RoleEnum.ADMIN))):
+                               current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
     result = await session.execute(select(MenuCategory).where(MenuCategory.id == category_id))
     category = result.scalar_one_or_none()
     if not category:
@@ -80,7 +80,7 @@ async def delete_menu_category(category_id: int, session: AsyncSession = Depends
 
 @router.get('/menu-categories/{category_id}/menu-items')
 async def get_menu_items_by_category(category_id: int, session: AsyncSession = Depends(get_async_session),
-                                     current_user: User = Depends(role_required(RoleEnum.STAFF))) -> list[
+                                     current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> list[
     SMenuItemResponse]:
     result = await session.execute(select(MenuItem).where(MenuItem.category_id == category_id))
     items = result.scalars().all()
@@ -90,7 +90,7 @@ async def get_menu_items_by_category(category_id: int, session: AsyncSession = D
 @router.post('/menu-items')
 async def add_menu_item(menu_item: SMenuItem,
                         session: AsyncSession = Depends(get_async_session),
-                        current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuItemResponse:
+                        current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItemResponse:
     existing_item_query = select(MenuItem).where(MenuItem.name == menu_item.name)
     result = await session.execute(existing_item_query)
     existing_item = result.scalar_one_or_none()
@@ -149,7 +149,7 @@ async def get_menu_item(item_id: int, session: AsyncSession = Depends(get_async_
 async def update_menu_item(item_id: int,
                            menu_item: SMenuItemEdit,
                            session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(role_required(RoleEnum.ADMIN))) -> SMenuItemResponse:
+                           current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItemResponse:
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:
@@ -182,7 +182,7 @@ async def update_menu_item(item_id: int,
 
 @router.delete('/menu-items/{item_id}')
 async def delete_menu_item(item_id: int, session: AsyncSession = Depends(get_async_session),
-                           current_user: User = Depends(role_required(RoleEnum.ADMIN))):
+                           current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
     result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
     item = result.scalar_one_or_none()
     if not item:

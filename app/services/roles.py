@@ -13,7 +13,7 @@ ROLE_HIERARCHY = {
 async def has_access(user_role: RoleEnum, required_role: RoleEnum) -> bool:
     return ROLE_HIERARCHY[user_role] >= ROLE_HIERARCHY[required_role]
 
-def role_required(required_role: RoleEnum):
+def get_current_user_if_role(required_role: RoleEnum):
     async def role_checker(user: User = Depends(get_current_user)):
         user_role = user.role
         if not await has_access(user_role, required_role):
