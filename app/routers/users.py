@@ -1,10 +1,14 @@
+from asyncpg import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
+from app.dependencies import users_service
 from app.models.users import User
-from app.schemas.users import RoleEnum, SUser, SUserEdit
+from app.schemas.users import RoleEnum, SUser, SUserEdit, SUserAdd
+from app.services.users import UsersService
 from app.utils.auth import get_current_user
 from app.utils.roles import get_current_user_if_role
 
@@ -14,64 +18,56 @@ router = APIRouter(
 )
 
 
+@router.post('')
+async def add_user(user_data: SUserAdd, user_service: UsersService = Depends(users_service),
+                   current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SUser:
+    try:
+        new_user = await user_service.add_user(user_data)
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="User with this username already exists")
+    return SUser.model_validate(new_user)
+
+
 @router.get('')
-async def get_all_users(session: AsyncSession = Depends(get_async_session),
+async def get_all_users(user_service: UsersService = Depends(users_service),
                         current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> list[SUser]:
-    result = await session.execute(select(User))
-    users = result.scalars().all()
-    return [SUser.model_validate(user, from_attributes=True) for user in users]
+    users = await user_service.get_users()
+    return [SUser.model_validate(user) for user in users]
 
 
 @router.get('/me')
 async def get_me(current_user: User = Depends(get_current_user)) -> SUser:
-    return SUser.model_validate(current_user, from_attributes=True)
+    return SUser.model_validate(current_user)
 
 
 @router.get('/{user_id}')
-async def get_user(user_id: int,
-                   session: AsyncSession = Depends(get_async_session),
+async def get_user(user_id: int, user_service: UsersService = Depends(users_service),
                    current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SUser:
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = await user_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return SUser.model_validate(user, from_attributes=True)
+    return SUser.model_validate(user)
 
 
 @router.patch('/{user_id}')
-async def update_user(user_id: int,
-                      user_data: SUserEdit,
-                      session: AsyncSession = Depends(get_async_session),
+async def update_user(user_id: int, user_data: SUserEdit,
+                      user_service: UsersService = Depends(users_service),
                       current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SUser:
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user_data.role:
-        if user == current_user and current_user.role == RoleEnum.ADMIN:
-            raise HTTPException(status_code=403, detail="Admin cannot change their own role")
-        else:
-            user.role = user_data.role
-    if user_data.username:
-        user.username = user_data.username
-    if user_data.first_name:
-        user.first_name = user_data.first_name
-    if user_data.last_name:
-        user.last_name = user_data.last_name
-    await session.commit()
-    return SUser.model_validate(user, from_attributes=True)
+    try:
+        user = await user_service.update_user_by_id(user_id, user_data, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="User with this username already exists")
+    return SUser.model_validate(user)
 
 
 @router.delete('/{user_id}')
 async def delete_user(user_id: int,
-                      session: AsyncSession = Depends(get_async_session),
+                      user_service: UsersService = Depends(users_service),
                       current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user == current_user:
-        raise HTTPException(status_code=403, detail="Admin cannot delete himself")
-    await session.delete(user)
-    await session.commit()
-    return {"status": 200, "message": "User deleted"}
+    try:
+        await user_service.delete_user_by_id(user_id, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"status": 200, "message": f"User with id {user_id} deleted"}

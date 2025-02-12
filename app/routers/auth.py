@@ -6,28 +6,13 @@ from starlette import status
 from app.utils.auth import get_user_by_username, create_jwt_token, get_password_hash, verify_password, verify_token
 from app.database import get_async_session
 from app.models.users import User
-from app.schemas.auth import SUserLogin, SUserRegister, SUserLoginResponse, SToken
+from app.schemas.auth import SUserLogin, SUserLoginResponse, SToken
 from app.schemas.users import SUser
 
 router = APIRouter(
     prefix="/auth",
     tags=["Auth"]
 )
-
-
-@router.post("/register")
-async def register(user: SUserRegister = Depends(), session: AsyncSession = Depends(get_async_session)):
-    result = await session.execute(select(User).filter(User.username == user.username))
-    existing_user = result.scalar_one_or_none()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-    hashed_password = get_password_hash(user.password)
-    new_user = User(username=user.username, first_name=user.first_name, last_name=user.last_name, role=user.role,
-                    password=hashed_password)
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
-    return SUser.model_validate(new_user, from_attributes=True)
 
 
 @router.post("/login")

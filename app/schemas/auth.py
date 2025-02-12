@@ -1,10 +1,6 @@
-from pydantic import Field, BaseModel
+from pydantic import BaseModel
 
-from app.schemas.users import SBaseUser, SUser
-
-
-class SUserRegister(SBaseUser):
-    password: str = Field(min_length=8)
+from app.schemas.users import SUser
 
 
 class SUserLogin(BaseModel):

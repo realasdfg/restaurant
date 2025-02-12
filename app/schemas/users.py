@@ -15,15 +15,25 @@ class SBaseUser(BaseModel):
     last_name: str = Field(min_length=1, max_length=50)
     role: RoleEnum = RoleEnum.STAFF
 
+    class Config:
+        extra = 'forbid'
+
+
+class SUserAdd(SBaseUser):
+    password: str = Field(min_length=8)
+
 
 class SUser(SBaseUser):
     id: int
     created_at: datetime
     is_deleted: bool = False
 
+    class Config:
+        from_attributes = True
+
 
 class SUserEdit(SBaseUser):
-    username: str | None = Field(None, min_length=3, max_length=50)
-    first_name: str | None = Field(None, min_length=1, max_length=50)
-    last_name: str | None = Field(None, min_length=1, max_length=50)
-    role: RoleEnum | None = None
+    username: str = Field(None, min_length=3, max_length=50)
+    first_name: str = Field(None, min_length=1, max_length=50)
+    last_name: str = Field(None, min_length=1, max_length=50)
+    role: RoleEnum = None
