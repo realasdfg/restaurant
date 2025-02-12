@@ -7,7 +7,8 @@ from alembic import context
 
 from app.models.menu import MenuCategory, MenuItem
 from app.models.users import User
-from app.models.orders import Order, Table
+from app.models.orders import Order, OrderItem
+from app.models.tables import Table
 from app.database import Base
 from app.config import settings
 

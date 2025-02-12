@@ -3,7 +3,8 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List, Dict
 
-from app.schemas.orders import SOrder, STable, SOrderItem
+from app.schemas.orders import SOrder, SOrderItem
+from app.schemas.tables import STable
 
 active_connections: Dict[str, List[WebSocket]] = {
     "orders": [],

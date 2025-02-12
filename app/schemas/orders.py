@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, model_validator
 
 from app.schemas.menu import MenuItemTypeEnum
 
@@ -11,16 +11,6 @@ from app.schemas.menu import MenuItemTypeEnum
 class OrderTypeEnum(enum.Enum):
     DINEIN = "dinein"
     TOGO = "togo"
-
-
-class STableAdd(BaseModel):
-    name: str = Field(..., min_length=1, max_length=20)
-
-
-class STable(STableAdd):
-    id: int
-    is_free: bool = True
-    is_deleted: bool = False
 
 
 class SOrderAdd(BaseModel):
