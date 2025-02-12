@@ -1,10 +1,6 @@
-from asyncpg import UniqueViolationError
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_async_session
 from app.dependencies import users_service
 from app.models.users import User
 from app.schemas.users import RoleEnum, SUser, SUserEdit, SUserAdd
