@@ -5,8 +5,7 @@ from app.dependencies import users_service
 from app.models.users import User
 from app.schemas.users import RoleEnum, SUser, SUserEdit, SUserAdd
 from app.services.users import UsersService
-from app.utils.auth import get_current_user
-from app.utils.roles import get_current_user_if_role
+from app.utils.users import get_current_user_if_role, get_current_user
 
 router = APIRouter(
     prefix='/users',

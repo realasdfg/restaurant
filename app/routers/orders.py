@@ -12,8 +12,7 @@ from app.models.users import User
 from app.schemas.orders import STable, SOrder, OrderTypeEnum, SOrderAdd, SOrderEdit, \
     SOrderItem, STableAdd, SOrderFilter
 from app.schemas.users import RoleEnum
-from app.utils.auth import get_current_user
-from app.utils.roles import get_current_user_if_role, has_access
+from app.utils.users import get_current_user_if_role, has_access, get_current_user
 from app.services.websockets import broadcast_order, broadcast_table
 
 router = APIRouter(

@@ -14,8 +14,8 @@ class UsersService(BaseCRUDService):
         user_dict['password'] = hashed_password
         return await self._create(user_dict)
 
-    async def get_users(self):
-        return await self._get_all()
+    async def get_users(self, filters: dict = None):
+        return await self._get_all(filters)
 
     async def get_user_by_id(self, user_id):
         return await self._get_one({'id': user_id})

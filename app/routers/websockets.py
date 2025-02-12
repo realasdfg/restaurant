@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.database import get_async_session
-from app.utils.auth import get_current_user
+from app.utils.users import get_current_user
 from app.services.websockets import handle_websocket
 
 router = APIRouter()

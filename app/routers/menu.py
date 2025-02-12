@@ -7,7 +7,7 @@ from app.schemas.menu import SMenuItemAdd, SMenuCategory, SMenuItem, SMenuItemEd
     SMenuItemPublicResponse, SMenuItemFilter
 from app.schemas.users import RoleEnum
 from app.services.menu import MenuCategoriesService, MenuItemsService
-from app.utils.roles import get_current_user_if_role, get_current_user_if_role_or_none
+from app.utils.users import get_current_user_if_role, get_current_user_if_role_or_none
 
 router = APIRouter(
     prefix='',

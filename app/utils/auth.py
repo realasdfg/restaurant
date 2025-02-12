@@ -1,16 +1,12 @@
 from datetime import datetime, timezone, timedelta
 
 import jwt
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.config import settings
-from app.database import get_async_session
-from app.models.users import User
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -46,38 +42,3 @@ async def verify_token(token: str, token_type: str | None = None):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-
-async def get_user_by_username(username: str, session: AsyncSession):
-    result = await session.execute(select(User).filter(User.username == username))
-    user = result.scalar_one_or_none()
-    return user
-
-
-async def get_current_user(session: AsyncSession = Depends(get_async_session),
-                           token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid token",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    payload = await verify_token(token, token_type='access')
-    user_username: str = payload.get("sub")
-    user = await get_user_by_username(user_username, session)
-    if user is None:
-        raise credentials_exception
-    return user
-
-
-async def get_current_user_or_none(session: AsyncSession = Depends(get_async_session),
-                                   token: str | None = Depends(oauth2_scheme)):
-    if token is None:
-        return None
-    try:
-        payload = await verify_token(token, token_type='access')
-        user_username: str = payload.get("sub")
-        user = await get_user_by_username(user_username, session)
-        return user
-    except HTTPException:
-        return None
-
