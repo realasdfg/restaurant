@@ -67,3 +67,17 @@ async def get_current_user(session: AsyncSession = Depends(get_async_session),
     if user is None:
         raise credentials_exception
     return user
+
+
+async def get_current_user_or_none(session: AsyncSession = Depends(get_async_session),
+                                   token: str | None = Depends(oauth2_scheme)):
+    if token is None:
+        return None
+    try:
+        payload = await verify_token(token, token_type='access')
+        user_username: str = payload.get("sub")
+        user = await get_user_by_username(user_username, session)
+        return user
+    except HTTPException:
+        return None
+
