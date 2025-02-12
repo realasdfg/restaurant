@@ -54,7 +54,7 @@ class MenuItemsService(BaseCRUDService):
 
     async def update_menu_item_by_id(self, item_id, edit_menu_item_data: SMenuItemEdit,
                                      category_service: MenuCategoriesService):
-        if edit_menu_item_data.category_id:
+        if edit_menu_item_data.category_id is not None:
             category = await category_service.get_menu_category_by_id(edit_menu_item_data.category_id)
             if not category:
                 raise ValueError("Category does not exist")
