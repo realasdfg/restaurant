@@ -18,18 +18,17 @@ class MenuCategoriesService(BaseCRUDService):
         return await self._get_one({'id': category_id})
 
     async def update_menu_category_by_id(self, category_id: int, edit_menu_category: SMenuCategoryAdd):
-        category = await self._get_one({'id': category_id})
-        if not category:
-            raise ValueError("Category not found")
-
         edit_category_dict = edit_menu_category.model_dump()
-        return await self._update(category_id, edit_category_dict)
+        updated_category = await self._update(category_id, edit_category_dict)
+        if not updated_category:
+            raise ValueError("Category not found")
+        return updated_category
 
     async def delete_menu_category_by_id(self, category_id: int):
-        category = await self._get_one({'id': category_id})
-        if not category:
+        deleted_category = await self._delete(category_id)
+        if not deleted_category:
             raise ValueError("Category not found")
-        return await self._delete(category_id)
+        return deleted_category
 
 
 class MenuItemsService(BaseCRUDService):
