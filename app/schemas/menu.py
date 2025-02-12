@@ -40,15 +40,15 @@ class SMenuItemAdd(BaseModel):
 
 
 class SMenuItemEdit(SMenuItemAdd):
-    name: str | None = Field(None, min_length=1, max_length=100)
+    name: str = Field(None, min_length=1, max_length=100)
     description: str | None = None
     image: str | None = None
-    price: Decimal | None = Field(None, ge=0)
-    cost: Decimal | None = Field(None, ge=0)
-    type: MenuItemTypeEnum | None = None
-    weight: int | None = None
-    available: bool | None = None
-    category_id: int | None = None
+    price: Decimal = Field(None, ge=0)
+    cost: Decimal = Field(None, ge=0)
+    type: MenuItemTypeEnum = None
+    weight: int = None
+    available: bool = None
+    category_id: int = None
 
 
 class SMenuItem(SMenuItemAdd):
