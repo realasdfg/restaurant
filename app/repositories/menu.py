@@ -1,5 +1,5 @@
 from app.models.menu import MenuCategory, MenuItem
-from app.utils.repository import SQLAlchemyRepository
+from app.repositories.repository import SQLAlchemyRepository
 
 
 class MenuCategoriesRepository(SQLAlchemyRepository):

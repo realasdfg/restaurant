@@ -1,4 +1,4 @@
-from app.utils.repository import AbstractRepository
+from app.repositories.repository import AbstractRepository
 
 class BaseCRUDService:
     def __init__(self, repo_class: type[AbstractRepository]):

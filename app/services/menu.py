@@ -2,7 +2,6 @@ from fastapi import HTTPException
 
 from app.models.users import User
 from app.schemas.menu import SMenuCategoryAdd, SMenuItemAdd, SMenuItemEdit, SMenuItemFilter
-from app.schemas.users import RoleEnum
 from app.services.crud_base import BaseCRUDService
 
 
@@ -34,6 +33,7 @@ class MenuCategoriesService(BaseCRUDService):
 
 
 class MenuItemsService(BaseCRUDService):
+
     async def add_menu_item(self, menu_item: SMenuItemAdd, category_service: MenuCategoriesService):
         category = await category_service.get_menu_category_by_id(menu_item.category_id)
         if not category:
