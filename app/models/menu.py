@@ -45,4 +45,6 @@ class MenuItem(Base):
 
     __table_args__ = (
         CheckConstraint("LENGTH(name) >= 1", name="menu_items_check_name_length"),
+        CheckConstraint("price >= 0", name="menu_items_check_price_non_negative"),
+        CheckConstraint("cost >= 0", name="menu_items_check_cost_non_negative"),
     )
