@@ -17,8 +17,8 @@ class MenuCategoriesService(BaseCRUDService):
     async def get_menu_category_by_id(self, category_id):
         return await self._get_one({'id': category_id})
 
-    async def update_menu_category_by_id(self, category_id: int, edit_menu_category: SMenuCategoryAdd):
-        edit_category_dict = edit_menu_category.model_dump()
+    async def update_menu_category_by_id(self, category_id: int, edit_menu_category_data: SMenuCategoryAdd):
+        edit_category_dict = edit_menu_category_data.model_dump()
         updated_category = await self._update(category_id, edit_category_dict)
         if not updated_category:
             raise ValueError("Category not found")
@@ -46,23 +46,19 @@ class MenuItemsService(BaseCRUDService):
             if filters.available is False:
                 raise HTTPException(status_code=403, detail="Forbidden")
             filters.available = True
-        filters_dict = filters.model_dump()
-        filters_dict = {key: value for key, value in filters_dict.items() if value is not None}
+        filters_dict = filters.model_dump(exclude_none=True)
         return await self._get_all(filters_dict)
 
     async def get_menu_item_by_id(self, item_id):
         return await self._get_one({'id': item_id})
 
-    async def update_menu_item_by_id(self, item_id, edit_menu_item: SMenuItemEdit,
+    async def update_menu_item_by_id(self, item_id, edit_menu_item_data: SMenuItemEdit,
                                      category_service: MenuCategoriesService):
-        if edit_menu_item.category_id:
-            category = await category_service.get_menu_category_by_id(edit_menu_item.category_id)
+        if edit_menu_item_data.category_id:
+            category = await category_service.get_menu_category_by_id(edit_menu_item_data.category_id)
             if not category:
                 raise ValueError("Category does not exist")
-
-        edit_item_dict = edit_menu_item.model_dump()
-        edit_item_dict = {key: value for key, value in edit_item_dict.items() if value is not None}
-
+        edit_item_dict = edit_menu_item_data.model_dump(exclude_unset=True)
         updated_item = await self._update(item_id, edit_item_dict)
         if not updated_item:
             raise ValueError("Item not found")
