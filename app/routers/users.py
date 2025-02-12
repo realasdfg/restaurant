@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_async_session
 from app.models.users import User
 from app.schemas.users import RoleEnum, SUser, SUserEdit
-from app.services.auth import get_current_user
+from app.utils.auth import get_current_user
 from app.services.roles import get_current_user_if_role
 
 router = APIRouter(

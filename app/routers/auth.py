@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.services.auth import get_user_by_username, create_jwt_token, get_password_hash, verify_password, verify_token
+from app.utils.auth import get_user_by_username, create_jwt_token, get_password_hash, verify_password, verify_token
 from app.database import get_async_session
 from app.models.users import User
 from app.schemas.auth import SUserLogin, SUserRegister, SUserLoginResponse, SToken

@@ -3,7 +3,7 @@ from starlette import status
 
 from app.models.users import User
 from app.schemas.users import RoleEnum
-from app.services.auth import get_current_user, get_current_user_or_none
+from app.utils.auth import get_current_user, get_current_user_or_none
 
 ROLE_HIERARCHY = {
     RoleEnum.STAFF: 1,
