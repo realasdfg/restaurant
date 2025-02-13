@@ -64,7 +64,7 @@ async def delete_menu_category(category_id: int,
         await categories_service.delete_menu_category_by_id(category_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return {"status": 200, "message": f"Category with id {category_id} deleted"}
+    return {"status": 200, "detail": f"Category with id {category_id} deleted"}
 
 
 @router.post('/menu-items')
@@ -83,9 +83,8 @@ async def add_menu_item(menu_item: SMenuItemAdd, items_service: MenuItemsService
 @router.get('/menu-items')
 async def get_menu_items(filters: SMenuItemFilter = Depends(),
                          items_service: MenuItemsService = Depends(menu_items_service),
-                         current_user: User | None = Depends(
-                             get_current_user_if_role_or_none(RoleEnum.ADMIN))) -> (list[SMenuItemPublicResponse] |
-                                                                                    list[SMenuItem]):
+                         current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
+                         ) -> (list[SMenuItemPublicResponse] | list[SMenuItem]):
     items = await items_service.get_menu_items(filters, current_user)
     if current_user is None:
         return [SMenuItemPublicResponse.model_validate(item) for item in items]
@@ -127,4 +126,4 @@ async def delete_menu_item(item_id: int, items_service: MenuItemsService = Depen
         await items_service.delete_menu_item_by_id(item_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return {"status": 200, "message": f"Item with id {item_id} deleted"}
+    return {"status": 200, "detail": f"Item with id {item_id} deleted"}

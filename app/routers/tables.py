@@ -58,4 +58,4 @@ async def delete_table(table_id: int, table_service: TablesService = Depends(tab
         await table_service.delete_table_by_id(table_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return {"status": 200, "message": f"Table with id {table_id} deleted"}
+    return {"status": 200, "detail": f"Table with id {table_id} deleted"}

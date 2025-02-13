@@ -66,4 +66,4 @@ async def delete_user(user_id: int,
         await user_service.delete_user_by_id(user_id, current_user)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return {"status": 200, "message": f"User with id {user_id} deleted"}
+    return {"status": 200, "detail": f"User with id {user_id} deleted"}

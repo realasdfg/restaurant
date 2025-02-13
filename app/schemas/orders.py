@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, Field
 
 from app.models.enums import OrderTypeEnum, MenuItemTypeEnum
 from app.models.orders import Order
@@ -91,12 +91,25 @@ class SOrderFilter(BaseModel):
         return query_filters
 
 
-class SOrderItem(BaseModel):
+class SOrderItemAddOrEdit(BaseModel):
+    quantity: int | None = Field(None, ge=1)
+
+    class Config:
+        extra = 'forbid'
+
+
+class SOrderItemPublicResponse(BaseModel):
     id: int
     order_id: int
     menu_item_id: int
     quantity: int
-    cost: Decimal
     price: Decimal
     type: MenuItemTypeEnum
     weight: int
+
+    class Config:
+        from_attributes = True
+
+
+class SOrderItem(SOrderItemPublicResponse):
+    cost: Decimal

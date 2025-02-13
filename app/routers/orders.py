@@ -1,18 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_async_session
-from app.dependencies import orders_service, tables_service
-from app.models.menu import MenuItem
-from app.models.orders import Order, OrderItem
+from app.dependencies import orders_service, tables_service, menu_items_service, order_items_service
 from app.models.users import User
-from app.schemas.orders import SOrder, SOrderAdd, SOrderEdit, SOrderItem, SOrderFilter
+from app.schemas.orders import SOrder, SOrderAdd, SOrderEdit, SOrderItem, SOrderFilter, SOrderItemAddOrEdit, \
+    SOrderItemPublicResponse
 from app.models.enums import OrderTypeEnum, RoleEnum
-from app.services.orders import OrdersService
+from app.services.menu import MenuItemsService
+from app.services.orders import OrdersService, OrderItemsService
 from app.services.tables import TablesService
-from app.utils.users import get_current_user_if_role, has_access, get_current_user
+from app.utils.users import get_current_user_if_role, has_access, get_current_user, get_current_user_if_role_or_none
 from app.services.websockets import broadcast_order, broadcast_table
 
 router = APIRouter(
@@ -33,7 +30,7 @@ async def add_order(order_data: SOrderAdd,
             await broadcast_table(order.table)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    except IntegrityError as e:
+    except IntegrityError:
         raise HTTPException(status_code=400, detail="Failed to create order due to a database error.")
     return SOrder.model_validate(order)
 
@@ -71,98 +68,89 @@ async def update_order(order_id: int, order_data: SOrderEdit,
     old_table = order.table
 
     updated_order = None
-    if order_data.paid is not None:
-        updated_order = await order_service.provide_order_payment(order, order_data, table_service, current_user)
-    elif order_data.type is not None or order_data.table_id is not None:
-        updated_order = await order_service.update_order_info(order, order_data, table_service)
-    elif order_data.paid_online is not None:
-        updated_order = await order_service.provide_order_payment_online(order, order_data)
+    try:
+        if order_data.paid is not None:
+            updated_order = await order_service.provide_order_payment(order, order_data, table_service, current_user)
+        elif order_data.type is not None or order_data.table_id is not None:
+            updated_order = await order_service.update_order_info(order, order_data, table_service)
+        elif order_data.paid_online is not None:
+            updated_order = await order_service.provide_order_payment_online(order, order_data)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="Failed to update order due to a database error.")
 
     await broadcast_order(updated_order)
-    if order.table:
-        await broadcast_table(order.table)
+    if updated_order.table:
+        await broadcast_table(updated_order.table)
     if old_table:
         await broadcast_table(old_table)
     return SOrder.model_validate(updated_order)
 
 
-@router.patch('/{order_id}/menu-items/{item_id}')
-async def add_or_update_order_item(order_id: int, item_id: int,
-                                   quantity: int | None = None,
-                                   session: AsyncSession = Depends(get_async_session),
-                                   current_user: User = Depends(
-                                       get_current_user_if_role(RoleEnum.STAFF))) -> SOrderItem:
-    order_item_result = await session.execute(select(OrderItem)
-                                              .where(OrderItem.order_id == order_id)
-                                              .where(OrderItem.menu_item_id == item_id))
-    order_item = order_item_result.scalar_one_or_none()
-
-    if order_item:
-        if quantity:
-            order_item.quantity = quantity
-        else:
-            order_item.quantity += 1
-    else:
-        order_result = await session.execute(select(Order).where(Order.id == order_id))
-        order = order_result.scalar_one_or_none()
-        if order is None:
-            raise HTTPException(status_code=404, detail="Order with this ID does not exist.")
-        menu_item_result = await session.execute(select(MenuItem).where(MenuItem.id == item_id))
-        menu_item = menu_item_result.scalar_one_or_none()
-        if menu_item is None:
-            raise HTTPException(status_code=404, detail="Menu item with this ID does not exist.")
-
-        order_item = OrderItem(
-            order_id=order_id,
-            menu_item_id=item_id,
-            quantity=quantity,
-            cost=menu_item.cost,
-            price=menu_item.price,
-            type=menu_item.type,
-            weight=menu_item.weight,
-        )
-        session.add(order_item)
+@router.patch('/{order_id}/menu-items/{menu_item_id}')
+async def add_or_update_order_item(order_id: int, menu_item_id: int, order_item_data: SOrderItemAddOrEdit,
+                                   order_item_service: OrderItemsService = Depends(order_items_service),
+                                   order_service: OrdersService = Depends(orders_service),
+                                   menu_item_service: MenuItemsService = Depends(menu_items_service),
+                                   current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))
+                                   ) -> SOrderItem:
     try:
-        await session.commit()
-        await session.refresh(order_item)
-        await broadcast_order(order_item=order_item)
+        order_item = await order_item_service.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
+        if order_item:
+            order_item = await order_item_service.update_order_item_quantity(order_id, menu_item_id, order_item_data,
+                                                                             order_service, menu_item_service)
+        else:
+            order_item = await order_item_service.add_order_item(order_id, menu_item_id, order_item_data, order_service,
+                                                                 menu_item_service)
+            await broadcast_order(order_item=order_item)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except IntegrityError:
-        await session.rollback()
         raise HTTPException(status_code=400, detail="Failed to add item to the order due to a database error.")
-    return SOrderItem.model_validate(order_item, from_attributes=True)
+    return SOrderItem.model_validate(order_item)
 
 
 @router.get('/{order_id}/menu-items')
-async def get_order_items(order_id: int,
-                          session: AsyncSession = Depends(get_async_session)) -> list[SOrderItem]:
-    result = await session.execute(select(OrderItem).where(OrderItem.order_id == order_id))
-    order_items = result.scalars().all()
-    return [SOrderItem.model_validate(order_item, from_attributes=True) for order_item in order_items]
+async def get_order_items(order_id: int, order_item_service: OrderItemsService = Depends(order_items_service),
+                          order_service: OrdersService = Depends(orders_service),
+                          current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.STAFF))
+                          ) -> list[SOrderItemPublicResponse] | list[SOrderItem]:
+    try:
+        order_items = await order_item_service.get_order_items(order_id, order_service)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if current_user is None:
+        return [SOrderItemPublicResponse.model_validate(order_item) for order_item in order_items]
+    else:
+        return [SOrderItem.model_validate(order_item) for order_item in order_items]
 
 
 @router.get('/{order_id}/menu-items/{item_id}')
-async def get_order_item(order_id: int, item_id: int,
-                         session: AsyncSession = Depends(get_async_session)) -> SOrderItem:
-    order_item_result = await session.execute(select(OrderItem)
-                                              .where(OrderItem.order_id == order_id)
-                                              .where(OrderItem.menu_item_id == item_id))
-    order_item = order_item_result.scalar_one_or_none()
-    if order_item is None:
-        raise HTTPException(status_code=404, detail="Order, menu item or item in order does not exist.")
-    return SOrderItem.model_validate(order_item, from_attributes=True)
+async def get_order_item(order_id: int, menu_item_id: int,
+                         order_item_service: OrderItemsService = Depends(order_items_service),
+                         order_service: OrdersService = Depends(orders_service),
+                         menu_item_service: MenuItemsService = Depends(menu_items_service),
+                         current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrderItem:
+    try:
+        order_item = await order_item_service.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
+        if order_item is None:
+            raise HTTPException(status_code=404, detail="Order item not found")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return SOrderItem.model_validate(order_item)
 
 
 @router.delete('/{order_id}/menu-items/{item_id}')
-async def delete_order_item(order_id: int, item_id: int,
-                            session: AsyncSession = Depends(get_async_session),
+async def delete_order_item(order_id: int, menu_item_id: int,
+                            order_item_service: OrderItemsService = Depends(order_items_service),
+                            order_service: OrdersService = Depends(orders_service),
+                            menu_item_service: MenuItemsService = Depends(menu_items_service),
                             current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))):
-    order_item_result = await session.execute(select(OrderItem)
-                                              .where(OrderItem.order_id == order_id)
-                                              .where(OrderItem.menu_item_id == item_id))
-    order_item = order_item_result.scalar_one_or_none()
-    if order_item is None:
-        raise HTTPException(status_code=404, detail="Order, menu item or item in order does not exist.")
-    await session.delete(order_item)
-    await session.commit()
-    await broadcast_order(order_item=order_item, deleted=True)
-    return {"status": 200, "message": "Order item deleted"}
+    try:
+        order_item = await order_item_service.delete_order_item(order_id, menu_item_id, order_service,
+                                                                menu_item_service)
+        await broadcast_order(order_item=order_item, deleted=True)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"status": 200, "detail": f"Order item with id {order_item.id} deleted"}

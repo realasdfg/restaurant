@@ -5,9 +5,10 @@ from fastapi import HTTPException
 
 from app.models.orders import Order
 from app.models.users import User
-from app.schemas.orders import SOrderAdd, SOrderFilter, SOrderEdit
+from app.schemas.orders import SOrderAdd, SOrderFilter, SOrderEdit, SOrderItemAddOrEdit
 from app.models.enums import OrderTypeEnum, MenuItemTypeEnum
 from app.services.crud_base import BaseCRUDService
+from app.services.menu import MenuItemsService
 from app.services.tables import TablesService
 
 
@@ -95,4 +96,63 @@ class OrdersService(BaseCRUDService):
             if order is None:
                 raise ValueError("Order not found")
         return Decimal(sum(item.price * item.quantity if item.type == MenuItemTypeEnum.BY_QUANTITY
-                   else (item.quantity / Decimal(item.weight)) * item.price for item in order.order_items))
+                           else (item.quantity / Decimal(item.weight)) * item.price for item in order.order_items))
+
+
+class OrderItemsService(BaseCRUDService):
+
+    async def add_order_item(self, order_id: int, menu_item_id: int, order_item_data: SOrderItemAddOrEdit,
+                             order_service: OrdersService, menu_item_service: MenuItemsService):
+        if order_item_data.quantity is None:
+            raise HTTPException(status_code=422, detail="Quantity cannot be empty")
+        order = await order_service.get_order_by_id(order_id)
+        if order is None:
+            raise ValueError("Order not found")
+        menu_item = await menu_item_service.get_menu_item_by_id(menu_item_id)
+        if menu_item is None:
+            raise ValueError("Menu item not found")
+        order_item_dict = {
+            'quantity': order_item_data.quantity,
+            'order_id': order_id,
+            'menu_item_id': menu_item_id,
+            'cost': menu_item.cost,
+            'price': menu_item.price,
+            'type': menu_item.type,
+            'weight': menu_item.weight,
+        }
+        return await self._create(order_item_dict)
+
+    async def get_order_items(self, order_id: int, order_service: OrdersService):
+        order = await order_service.get_order_by_id(order_id)
+        if order is None:
+            raise ValueError("Order not found")
+        return await self._get_all({'order_id': order_id})
+
+    async def get_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
+                             menu_item_service: MenuItemsService):
+        order = await order_service.get_order_by_id(order_id)
+        if order is None:
+            raise ValueError("Order not found")
+        menu_item = await menu_item_service.get_menu_item_by_id(menu_item_id)
+        if menu_item is None:
+            raise ValueError("Menu item not found")
+        return await self._get_one({'order_id': order_id, 'menu_item_id': menu_item_id})
+
+    async def update_order_item_quantity(self, order_id: int, menu_item_id: int, order_item_data: SOrderItemAddOrEdit,
+                                         order_service: OrdersService, menu_item_service: MenuItemsService):
+        order_item = await self.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
+        if order_item is None:
+            raise ValueError("Order item not found")
+
+        if order_item_data.quantity is None:
+            quantity = order_item.quantity + 1
+        else:
+            quantity = order_item_data.quantity
+        return await self._update(order_item.id, {'quantity': quantity})
+
+    async def delete_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
+                                menu_item_service: MenuItemsService):
+        order_item = await self.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
+        if order_item is None:
+            raise ValueError("Order item not found")
+        return await self._delete(order_item.id)
