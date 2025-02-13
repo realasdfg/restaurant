@@ -50,14 +50,15 @@ class SQLAlchemyRepository(AbstractRepository):
 
     async def find_all(self, filters: dict = None, include_deleted: bool = False):
         async with async_session() as session:
-            stmt = select(self.model)
-
             if self.soft_delete_field and not include_deleted:
                 filters = filters or {}
                 filters[self.soft_delete_field] = False
 
-            if filters:
-                stmt = stmt.filter_by(**filters)
+            stmt = select(self.model)
+            conditions = self._build_conditions(filters)
+            if conditions:
+                stmt = stmt.filter(*conditions)
+
             res = await session.execute(stmt)
             return res.scalars().all()
 
@@ -91,3 +92,20 @@ class SQLAlchemyRepository(AbstractRepository):
             res = await session.execute(stmt)
             await session.commit()
             return res.scalar_one_or_none()
+
+    def _build_conditions(self, filters: dict):
+        conditions = []
+        for key, value in filters.items():
+            if isinstance(key, tuple):
+                column, operator = key
+                if operator == ">=":
+                    conditions.append(column >= value)
+                elif operator == "<=":
+                    conditions.append(column <= value)
+                elif operator == "!=":
+                    conditions.append(column != value)
+                else:
+                    raise ValueError(f"Unsupported operator: {operator}")
+            else:
+                conditions.append(getattr(self.model, key) == value)
+        return conditions
