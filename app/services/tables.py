@@ -1,33 +1,34 @@
+from app.models.tables import Table
 from app.schemas.tables import STableAdd
 from app.services.crud_base import BaseCRUDService
 
 
 class TablesService(BaseCRUDService):
 
-    async def add_table(self, table_data: STableAdd):
+    async def add_table(self, table_data: STableAdd) -> Table:
         table_dict = table_data.model_dump()
         return await self._create(table_dict)
 
-    async def get_tables(self):
+    async def get_tables(self) -> list[Table]:
         return await self._get_all()
 
-    async def get_table_by_id(self, table_id):
+    async def get_table_by_id(self, table_id) -> Table | None:
         return await self._get_one({'id': table_id})
 
-    async def update_table_by_id(self, table_id: int, edit_table_data: STableAdd):
+    async def update_table_by_id(self, table_id: int, edit_table_data: STableAdd) -> Table:
         edit_table_dict = edit_table_data.model_dump()
         updated_table = await self._update(table_id, edit_table_dict)
         if not updated_table:
             raise ValueError("Table not found")
         return updated_table
 
-    async def delete_table_by_id(self, table_id: int):
+    async def delete_table_by_id(self, table_id: int) -> Table:
         deleted_table = await self._delete(table_id)
         if not deleted_table:
             raise ValueError("Table not found")
         return deleted_table
 
-    async def set_is_free(self, table_id: int, is_free: bool):
+    async def set_is_free(self, table_id: int, is_free: bool) -> Table:
         table = await self.get_table_by_id(table_id)
         if not table:
             raise ValueError("Table not found")

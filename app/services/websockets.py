@@ -43,7 +43,7 @@ async def broadcast_update(connection_type: str, data):
 
 async def broadcast_order(order=None, order_item=None, deleted=False):
     if order:
-        json_data = SOrder.model_validate(order, from_attributes=True).model_dump_json()
+        json_data = SOrder.model_validate(order).model_dump_json()
         await broadcast_update("orders", json_data)
 
         if order.id in order_connections:
@@ -54,11 +54,11 @@ async def broadcast_order(order=None, order_item=None, deleted=False):
         if deleted:
             json_data = json.dumps({'id': order_item.id, 'deleted': True})
         else:
-            json_data = SOrderItem.model_validate(order_item, from_attributes=True).model_dump_json()
+            json_data = SOrderItem.model_validate(order_item).model_dump_json()
         if order_item.order.id in order_connections:
             for connection in order_connections[order_item.order.id]:
                 await connection.send_text(json_data)
 
 
 async def broadcast_table(table):
-    await broadcast_update("tables", STable.model_validate(table, from_attributes=True).model_dump_json())
+    await broadcast_update("tables", STable.model_validate(table).model_dump_json())
