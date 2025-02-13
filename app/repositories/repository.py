@@ -93,7 +93,7 @@ class SQLAlchemyRepository(AbstractRepository):
             await session.commit()
             return res.scalar_one_or_none()
 
-    def _build_conditions(self, filters: dict):
+    def _build_conditions(self, filters: dict) -> list:
         conditions = []
         for key, value in filters.items():
             if isinstance(key, tuple):
@@ -102,10 +102,7 @@ class SQLAlchemyRepository(AbstractRepository):
                     conditions.append(column >= value)
                 elif operator == "<=":
                     conditions.append(column <= value)
-                elif operator == "!=":
-                    conditions.append(column != value)
-                else:
-                    raise ValueError(f"Unsupported operator: {operator}")
             else:
+                # Стандартні перевірки типу "field == value"
                 conditions.append(getattr(self.model, key) == value)
         return conditions
