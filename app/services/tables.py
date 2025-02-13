@@ -26,3 +26,10 @@ class TablesService(BaseCRUDService):
         if not deleted_table:
             raise ValueError("Table not found")
         return deleted_table
+
+    async def toggle_is_free(self, table_id: int):
+        table = await self.get_table_by_id(table_id)
+        if not table:
+            raise ValueError("Table not found")
+        new_value = not table.is_free
+        return await self._update(table_id, {'is_free': new_value})
