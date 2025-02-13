@@ -36,7 +36,7 @@ class MenuItemsService(BaseCRUDService):
     async def add_menu_item(self, menu_item: SMenuItemAdd, category_service: MenuCategoriesService):
         category = await category_service.get_menu_category_by_id(menu_item.category_id)
         if not category:
-            raise ValueError("Category does not exist")
+            raise ValueError("Category not found")
 
         item_dict = menu_item.model_dump()
         return await self._create(item_dict)
@@ -57,7 +57,7 @@ class MenuItemsService(BaseCRUDService):
         if edit_menu_item_data.category_id is not None:
             category = await category_service.get_menu_category_by_id(edit_menu_item_data.category_id)
             if not category:
-                raise ValueError("Category does not exist")
+                raise ValueError("Category not found")
         edit_item_dict = edit_menu_item_data.model_dump(exclude_unset=True)
         updated_item = await self._update(item_id, edit_item_dict)
         if not updated_item:
