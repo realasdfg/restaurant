@@ -3,7 +3,7 @@ from starlette import status
 
 from app.dependencies import users_service
 from app.models.users import User
-from app.schemas.users import RoleEnum
+from app.models.enums import RoleEnum
 from app.services.users import UsersService
 from app.utils.auth import oauth2_scheme, verify_token
 

@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from app.dependencies import tables_service
 from app.models.users import User
 from app.schemas.tables import STableAdd, STable
-from app.schemas.users import RoleEnum
+from app.models.enums import RoleEnum
 from app.services.tables import TablesService
 from app.utils.users import get_current_user_if_role
 

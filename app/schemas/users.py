@@ -1,12 +1,8 @@
-import enum
 from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-
-class RoleEnum(enum.Enum):
-    STAFF = "staff"
-    ADMIN = "admin"
+from app.models.enums import RoleEnum
 
 
 class SBaseUser(BaseModel):

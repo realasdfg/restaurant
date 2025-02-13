@@ -1,12 +1,8 @@
-import enum
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-
-class MenuItemTypeEnum(enum.Enum):
-    BY_WEIGHT = "by_weight"
-    BY_QUANTITY = "by_quantity"
+from app.models.enums import MenuItemTypeEnum
 
 
 class SMenuCategoryAdd(BaseModel):

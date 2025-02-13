@@ -4,7 +4,7 @@ from sqlalchemy import String, func, Enum as SqlEnum, Index, text, CheckConstrai
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.schemas.users import RoleEnum
+from app.models.enums import RoleEnum
 
 
 class User(Base):

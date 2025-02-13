@@ -1,17 +1,17 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
+from app.dependencies import orders_service, tables_service
 from app.models.menu import MenuItem
 from app.models.orders import Order, OrderItem
-from app.models.tables import Table
 from app.models.users import User
-from app.schemas.orders import SOrder, OrderTypeEnum, SOrderAdd, SOrderEdit, SOrderItem, SOrderFilter
-from app.schemas.users import RoleEnum
+from app.schemas.orders import SOrder, SOrderAdd, SOrderEdit, SOrderItem, SOrderFilter
+from app.models.enums import OrderTypeEnum, RoleEnum
+from app.services.orders import OrdersService
+from app.services.tables import TablesService
 from app.utils.users import get_current_user_if_role, has_access, get_current_user
 from app.services.websockets import broadcast_order, broadcast_table
 
@@ -22,138 +22,68 @@ router = APIRouter(
 
 
 @router.post('')
-async def add_order(order: SOrderAdd,
-                    session: AsyncSession = Depends(get_async_session),
+async def add_order(order_data: SOrderAdd,
+                    order_service: OrdersService = Depends(orders_service),
+                    table_service: TablesService = Depends(tables_service),
                     current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
-    if order.type == OrderTypeEnum.DINEIN and order.table_id is None:
-        raise HTTPException(status_code=400, detail="Order with 'dine in' type must have table_id.")
-    new_order = Order(
-        type=order.type,
-        created_by=current_user.id,
-    )
-    if order.type == OrderTypeEnum.DINEIN:
-        table_query = select(Table).where(Table.id == order.table_id)
-        table_result = await session.execute(table_query)
-        table = table_result.scalar_one_or_none()
-        if table is None:
-            raise HTTPException(status_code=404, detail="Table with this ID does not exist.")
-        if not table.is_free:
-            raise HTTPException(status_code=400, detail="Table is already occupied.")
-
-        new_order.table_id = order.table_id
-        table.is_free = False
-
-    session.add(new_order)
     try:
-        await session.commit()
-        await session.refresh(new_order)
-        await broadcast_order(new_order)
-        if order.type == OrderTypeEnum.DINEIN:
-            await broadcast_table(new_order.table)
-    except IntegrityError:
-        await session.rollback()
+        order = await order_service.add_order(order_data, table_service, current_user)
+        await broadcast_order(order)
+        if order_data.type == OrderTypeEnum.DINEIN:
+            await broadcast_table(order.table)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except IntegrityError as e:
         raise HTTPException(status_code=400, detail="Failed to create order due to a database error.")
-    return SOrder.model_validate(new_order, from_attributes=True)
+    return SOrder.model_validate(order)
 
 
 @router.get('')
-async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = Depends(get_async_session),
+async def get_orders(filters: SOrderFilter = Depends(), order_service: OrdersService = Depends(orders_service),
                      current_user: User = Depends(get_current_user)) -> list[SOrder]:
-    if (not filters.current_only or filters.paid_only or filters.type or filters.from_created_date or
-            filters.from_created_date or filters.created_by or filters.paid_by):
-        if not await has_access(current_user.role, RoleEnum.ADMIN):
-            raise HTTPException(status_code=403, detail=f"Access denied")
-
-    query = select(Order)
-    if filters.current_only:
-        query = query.where(Order.paid == False)
-    elif filters.paid_only:
-        query = query.where(Order.paid == True)
-    if filters.from_created_date:
-        query = query.where(Order.created_at >= filters.from_created_date)
-    if filters.to_created_date:
-        query = query.where(Order.created_at <= filters.to_created_date)
-    if filters.type:
-        query = query.where(Order.type == filters.type)
-    if filters.created_by:
-        query = query.where(Order.created_by == filters.created_by)
-    if filters.paid_by:
-        query = query.where(Order.paid_by == filters.paid_by)
-
-    result = await session.execute(query.order_by(Order.created_at.desc()))
-    orders = result.scalars().all()
-    return [SOrder.model_validate(order, from_attributes=True) for order in orders]
+    if filters.paid is not False and not await has_access(current_user.role, RoleEnum.ADMIN):
+        raise HTTPException(status_code=403, detail=f"Access denied. Try to use paid=false parameter")
+    orders = await order_service.get_orders(filters)
+    return [SOrder.model_validate(order) for order in orders]
 
 
 @router.get('/{order_id}')
-async def get_order(order_id: int, session: AsyncSession = Depends(get_async_session),
+async def get_order(order_id: int, order_service: OrdersService = Depends(orders_service),
                     current_user: User = Depends(get_current_user)) -> SOrder:
-    result = await session.execute(select(Order).where(Order.id == order_id))
-    order = result.scalar_one_or_none()
+    order = await order_service.get_order_by_id(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.paid and not await has_access(current_user.role, RoleEnum.ADMIN):
         raise HTTPException(status_code=403, detail=f"Access denied")
-    return SOrder.model_validate(order, from_attributes=True)
+    return SOrder.model_validate(order)
 
 
 @router.patch('/{order_id}')
-async def update_order(order_id: int,
-                       order_data: SOrderEdit,
-                       session: AsyncSession = Depends(get_async_session),
+async def update_order(order_id: int, order_data: SOrderEdit,
+                       order_service: OrdersService = Depends(orders_service),
+                       table_service: TablesService = Depends(tables_service),
                        current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
-    result = await session.execute(select(Order).where(Order.id == order_id))
-    order = result.scalar_one_or_none()
+    order = await order_service.get_order_by_id(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if order.paid:
         raise HTTPException(status_code=403, detail="Order cannot be changed after payment")
-
     old_table = order.table
 
-    if order_data.paid:
-        if order_data.type or order_data.table_id:
-            raise HTTPException(status_code=400,
-                                detail="Can't close order and change its type or table at the same time")
-        if not order_data.paid_by_card and not order_data.paid_by_cash:
-            raise HTTPException(status_code=400, detail="Must be provided some sums for payment")
-        order.paid = True
-        order.paid_at = datetime.now()
-        order.paid_by_cash = order_data.paid_by_cash
-        order.paid_by_card = order_data.paid_by_card
-        order.paid_by = current_user.id
-        if order.table:
-            order.table.is_free = True
-    else:
-        if order_data.paid_by_card or order_data.paid_by_cash:
-            raise HTTPException(status_code=400, detail="Can change payment sum during order closing only")
+    updated_order = None
+    if order_data.paid is not None:
+        updated_order = await order_service.provide_order_payment(order, order_data, table_service, current_user)
+    elif order_data.type is not None or order_data.table_id is not None:
+        updated_order = await order_service.update_order_info(order, order_data, table_service)
+    elif order_data.paid_online is not None:
+        updated_order = await order_service.provide_order_payment_online(order, order_data)
 
-        if order_data.type:
-            order.type = order_data.type
-        if order.type == OrderTypeEnum.TOGO:
-            order.table.is_free = True
-            order.table_id = None
-        elif order.type == OrderTypeEnum.DINEIN:
-            if order_data.table_id is None:
-                raise HTTPException(status_code=400, detail="Order with 'dine in' type must have table_id.")
-            table_result = await session.execute(select(Table).where(Table.id == order_data.table_id))
-            table = table_result.scalar_one_or_none()
-            if table is None:
-                raise HTTPException(status_code=404, detail="Table with this ID does not exist.")
-            if not table.is_free:
-                raise HTTPException(status_code=400, detail="Table is already occupied.")
-            if order.table:
-                order.table.is_free = True
-            order.table = table
-            order.table.is_free = False
-
-    await session.commit()
-    await broadcast_order(order)
+    await broadcast_order(updated_order)
     if order.table:
         await broadcast_table(order.table)
     if old_table:
         await broadcast_table(old_table)
-    return SOrder.model_validate(order, from_attributes=True)
+    return SOrder.model_validate(updated_order)
 
 
 @router.patch('/{order_id}/menu-items/{item_id}')

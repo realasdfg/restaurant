@@ -6,8 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from decimal import Decimal
 
 from app.database import Base
-from app.schemas.menu import MenuItemTypeEnum
-from app.schemas.orders import OrderTypeEnum
+from app.models.enums import OrderTypeEnum, MenuItemTypeEnum
 
 
 class Order(Base):

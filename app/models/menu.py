@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from app.database import Base
 from app.models.orders import OrderItem
-from app.schemas.menu import MenuItemTypeEnum
+from app.models.enums import MenuItemTypeEnum
 
 
 class MenuCategory(Base):

@@ -1,8 +1,10 @@
 from app.repositories.menu import MenuCategoriesRepository, MenuItemsRepository
+from app.repositories.orders import OrdersRepository
 from app.repositories.tables import TablesRepository
 from app.repositories.users import UsersRepository
 from app.services.auth import AuthService
 from app.services.menu import MenuCategoriesService, MenuItemsService
+from app.services.orders import OrdersService
 from app.services.tables import TablesService
 from app.services.users import UsersService
 
@@ -25,3 +27,7 @@ def auth_service():
 
 def tables_service():
     return TablesService(TablesRepository)
+
+
+def orders_service():
+    return OrdersService(OrdersRepository)
