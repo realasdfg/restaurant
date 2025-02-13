@@ -1,7 +1,9 @@
 from app.repositories.menu import MenuCategoriesRepository, MenuItemsRepository
+from app.repositories.tables import TablesRepository
 from app.repositories.users import UsersRepository
 from app.services.auth import AuthService
 from app.services.menu import MenuCategoriesService, MenuItemsService
+from app.services.tables import TablesService
 from app.services.users import UsersService
 
 
@@ -19,3 +21,7 @@ def users_service():
 
 def auth_service():
     return AuthService(UsersRepository)
+
+
+def tables_service():
+    return TablesService(TablesRepository)

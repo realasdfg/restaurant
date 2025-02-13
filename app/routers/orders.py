@@ -16,12 +16,12 @@ from app.utils.users import get_current_user_if_role, has_access, get_current_us
 from app.services.websockets import broadcast_order, broadcast_table
 
 router = APIRouter(
-    prefix='',
+    prefix='/orders',
     tags=['Orders']
 )
 
 
-@router.post('/orders')
+@router.post('')
 async def add_order(order: SOrderAdd,
                     session: AsyncSession = Depends(get_async_session),
                     current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
@@ -56,7 +56,7 @@ async def add_order(order: SOrderAdd,
     return SOrder.model_validate(new_order, from_attributes=True)
 
 
-@router.get('/orders')
+@router.get('')
 async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = Depends(get_async_session),
                      current_user: User = Depends(get_current_user)) -> list[SOrder]:
     if (not filters.current_only or filters.paid_only or filters.type or filters.from_created_date or
@@ -85,7 +85,7 @@ async def get_orders(filters: SOrderFilter = Depends(), session: AsyncSession = 
     return [SOrder.model_validate(order, from_attributes=True) for order in orders]
 
 
-@router.get('/orders/{order_id}')
+@router.get('/{order_id}')
 async def get_order(order_id: int, session: AsyncSession = Depends(get_async_session),
                     current_user: User = Depends(get_current_user)) -> SOrder:
     result = await session.execute(select(Order).where(Order.id == order_id))
@@ -97,7 +97,7 @@ async def get_order(order_id: int, session: AsyncSession = Depends(get_async_ses
     return SOrder.model_validate(order, from_attributes=True)
 
 
-@router.patch('/orders/{order_id}')
+@router.patch('/{order_id}')
 async def update_order(order_id: int,
                        order_data: SOrderEdit,
                        session: AsyncSession = Depends(get_async_session),
@@ -156,7 +156,7 @@ async def update_order(order_id: int,
     return SOrder.model_validate(order, from_attributes=True)
 
 
-@router.patch('/orders/{order_id}/menu-items/{item_id}')
+@router.patch('/{order_id}/menu-items/{item_id}')
 async def add_or_update_order_item(order_id: int, item_id: int,
                                    quantity: int | None = None,
                                    session: AsyncSession = Depends(get_async_session),
@@ -202,7 +202,7 @@ async def add_or_update_order_item(order_id: int, item_id: int,
     return SOrderItem.model_validate(order_item, from_attributes=True)
 
 
-@router.get('/orders/{order_id}/menu-items')
+@router.get('/{order_id}/menu-items')
 async def get_order_items(order_id: int,
                           session: AsyncSession = Depends(get_async_session)) -> list[SOrderItem]:
     result = await session.execute(select(OrderItem).where(OrderItem.order_id == order_id))
@@ -210,7 +210,7 @@ async def get_order_items(order_id: int,
     return [SOrderItem.model_validate(order_item, from_attributes=True) for order_item in order_items]
 
 
-@router.get('/orders/{order_id}/menu-items/{item_id}')
+@router.get('/{order_id}/menu-items/{item_id}')
 async def get_order_item(order_id: int, item_id: int,
                          session: AsyncSession = Depends(get_async_session)) -> SOrderItem:
     order_item_result = await session.execute(select(OrderItem)
@@ -222,7 +222,7 @@ async def get_order_item(order_id: int, item_id: int,
     return SOrderItem.model_validate(order_item, from_attributes=True)
 
 
-@router.delete('/orders/{order_id}/menu-items/{item_id}')
+@router.delete('/{order_id}/menu-items/{item_id}')
 async def delete_order_item(order_id: int, item_id: int,
                             session: AsyncSession = Depends(get_async_session),
                             current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))):
