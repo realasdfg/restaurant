@@ -11,10 +11,10 @@ class User(Base):
     __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(50))
+    username: Mapped[str] = mapped_column(String(30))
     password: Mapped[str]
-    first_name: Mapped[str] = mapped_column(String(50))
-    last_name: Mapped[str] = mapped_column(String(50))
+    first_name: Mapped[str] = mapped_column(String(30))
+    last_name: Mapped[str] = mapped_column(String(30))
     role: Mapped[RoleEnum] = mapped_column(SqlEnum(RoleEnum))
     created_at: Mapped[datetime] = mapped_column(default=func.now())
     is_deleted: Mapped[bool] = mapped_column(default=False)

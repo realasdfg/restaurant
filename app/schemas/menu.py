@@ -21,13 +21,13 @@ class SMenuCategory(SMenuCategoryAdd):
 
 
 class SMenuItemAdd(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    description: str | None = None
+    name: str = Field(..., min_length=1, max_length=50)
+    description: str | None = Field(None, max_length=256)
     image: str | None = None
     price: Decimal = Field(..., ge=0)
     cost: Decimal = Field(..., ge=0)
     type: MenuItemTypeEnum
-    weight: int
+    weight: int = Field(..., ge=1)
     available: bool = True
     category_id: int
 
@@ -36,13 +36,13 @@ class SMenuItemAdd(BaseModel):
 
 
 class SMenuItemEdit(SMenuItemAdd):
-    name: str = Field(None, min_length=1, max_length=100)
-    description: str | None = None
+    name: str = Field(None, min_length=1, max_length=50)
+    description: str | None = Field(None, max_length=256)
     image: str | None = None
     price: Decimal = Field(None, ge=0)
     cost: Decimal = Field(None, ge=0)
     type: MenuItemTypeEnum = None
-    weight: int = None
+    weight: int = Field(None, ge=1)
     available: bool = None
     category_id: int = None
 
@@ -57,12 +57,12 @@ class SMenuItem(SMenuItemAdd):
 
 class SMenuItemPublicResponse(BaseModel):
     id: int
-    name: str = Field(..., min_length=1, max_length=100)
-    description: str | None = None
+    name: str = Field(..., min_length=1, max_length=50)
+    description: str | None = Field(None, max_length=256)
     image: str | None = None
-    price: Decimal
+    price: Decimal = Field(..., ge=0)
     type: MenuItemTypeEnum
-    weight: int
+    weight: int = Field(..., ge=1)
     available: bool = True
     category_id: int
 

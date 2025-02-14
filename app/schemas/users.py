@@ -6,9 +6,9 @@ from app.models.enums import RoleEnum
 
 
 class SBaseUser(BaseModel):
-    username: str = Field(min_length=3, max_length=50)
-    first_name: str = Field(min_length=1, max_length=50)
-    last_name: str = Field(min_length=1, max_length=50)
+    username: str = Field(min_length=3, max_length=30)
+    first_name: str = Field(min_length=1, max_length=30)
+    last_name: str = Field(min_length=1, max_length=30)
     role: RoleEnum = RoleEnum.STAFF
 
     class Config:
@@ -29,7 +29,7 @@ class SUser(SBaseUser):
 
 
 class SUserEdit(SBaseUser):
-    username: str = Field(None, min_length=3, max_length=50)
-    first_name: str = Field(None, min_length=1, max_length=50)
-    last_name: str = Field(None, min_length=1, max_length=50)
+    username: str = Field(None, min_length=3, max_length=30)
+    first_name: str = Field(None, min_length=1, max_length=30)
+    last_name: str = Field(None, min_length=1, max_length=30)
     role: RoleEnum = None

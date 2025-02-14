@@ -29,8 +29,8 @@ class MenuItem(Base):
     __tablename__ = 'menu_items'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(100))
-    description: Mapped[str | None] = mapped_column()
+    name: Mapped[str] = mapped_column(String(50))
+    description: Mapped[str | None] = mapped_column(String(256))
     image: Mapped[str | None] = mapped_column()
     price: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
     cost: Mapped[Decimal] = mapped_column(DECIMAL(7, 2))
@@ -47,4 +47,5 @@ class MenuItem(Base):
         CheckConstraint("LENGTH(name) >= 1", name="menu_items_check_name_length"),
         CheckConstraint("price >= 0", name="menu_items_check_price_non_negative"),
         CheckConstraint("cost >= 0", name="menu_items_check_cost_non_negative"),
+        CheckConstraint("weight >= 1", name="menu_items_check_weight_positive"),
     )

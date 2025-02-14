@@ -9,7 +9,7 @@ class Table(Base):
     __tablename__ = 'tables'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str] = mapped_column(String(10))
     is_free: Mapped[bool] = mapped_column(default=True)
     is_deleted: Mapped[bool] = mapped_column(default=False)
 
