@@ -13,7 +13,7 @@ class MenuCategoriesService(BaseCRUDService):
         return await self._create(category_dict)
 
     async def get_menu_categories(self) -> list[MenuCategory]:
-        return await self._get_all()
+        return await self._get_all(order_by=MenuCategory.id)
 
     async def get_menu_category_by_id(self, category_id) -> MenuCategory | None:
         return await self._get_one({'id': category_id})
@@ -51,7 +51,7 @@ class MenuItemsService(BaseCRUDService):
                 raise HTTPException(status_code=403, detail="Forbidden")
             filters.available = True
         filters_dict = filters.model_dump(exclude_none=True)
-        return await self._get_all(filters_dict)
+        return await self._get_all(filters_dict, order_by=MenuItem.id)
 
     async def get_menu_item_by_id(self, item_id) -> MenuItem | None:
         return await self._get_one({'id': item_id})

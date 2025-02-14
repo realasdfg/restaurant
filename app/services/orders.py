@@ -30,7 +30,7 @@ class OrdersService(BaseCRUDService):
 
     async def get_orders(self, filters: SOrderFilter) -> list[Order]:
         filters_dict = filters.to_query_filters()
-        return await self._get_all(filters_dict)
+        return await self._get_all(filters_dict, Order.created_at.desc())
 
     async def get_order_by_id(self, order_id) -> Order | None:
         return await self._get_one({'id': order_id})

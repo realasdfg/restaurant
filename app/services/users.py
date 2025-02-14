@@ -15,7 +15,7 @@ class UsersService(BaseCRUDService):
         return await self._create(user_dict)
 
     async def get_users(self, filters: dict = None) -> list[User]:
-        return await self._get_all(filters)
+        return await self._get_all(filters, User.id)
 
     async def get_user_by_id(self, user_id) -> User | None:
         return await self._get_one({'id': user_id})

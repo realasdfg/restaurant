@@ -15,7 +15,7 @@ class AbstractRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def find_all(self, filters: dict = None, include_deleted: bool = False):
+    async def find_all(self, filters: dict = None, order_by=None, include_deleted: bool = False):
         raise NotImplementedError
 
     @abstractmethod
@@ -48,7 +48,7 @@ class SQLAlchemyRepository(AbstractRepository):
             res = await session.execute(stmt)
             return res.scalar_one_or_none()
 
-    async def find_all(self, filters: dict = None, include_deleted: bool = False):
+    async def find_all(self, filters: dict = None, order_by=None, include_deleted: bool = False):
         async with async_session() as session:
             if self.soft_delete_field and not include_deleted:
                 filters = filters or {}
@@ -58,7 +58,7 @@ class SQLAlchemyRepository(AbstractRepository):
             conditions = self._build_conditions(filters)
             if conditions:
                 stmt = stmt.filter(*conditions)
-
+            stmt = stmt.order_by(order_by)
             res = await session.execute(stmt)
             return res.scalars().all()
 
