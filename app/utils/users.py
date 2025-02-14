@@ -17,7 +17,7 @@ async def has_access(user_role: RoleEnum, required_role: RoleEnum) -> bool:
     return ROLE_HIERARCHY[user_role] >= ROLE_HIERARCHY[required_role]
 
 
-async def get_current_user(user_service: UsersService = Depends(users_service), token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme), user_service: UsersService = Depends(users_service)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid token",
@@ -31,8 +31,8 @@ async def get_current_user(user_service: UsersService = Depends(users_service), 
     return user
 
 
-async def get_current_user_or_none(user_service: UsersService = Depends(users_service),
-                                   token: str | None = Depends(oauth2_scheme)):
+async def get_current_user_or_none(token: str | None = Depends(oauth2_scheme),
+                                   user_service: UsersService = Depends(users_service)):
     if token is None:
         return None
     try:
