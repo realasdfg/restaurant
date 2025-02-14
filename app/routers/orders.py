@@ -126,7 +126,7 @@ async def get_order_items(order_id: int, order_item_service: OrderItemsService =
         return [SOrderItem.model_validate(order_item) for order_item in order_items]
 
 
-@router.get('/{order_id}/menu-items/{item_id}')
+@router.get('/{order_id}/menu-items/{menu_item_id}')
 async def get_order_item(order_id: int, menu_item_id: int,
                          order_item_service: OrderItemsService = Depends(order_items_service),
                          order_service: OrdersService = Depends(orders_service),
@@ -141,7 +141,7 @@ async def get_order_item(order_id: int, menu_item_id: int,
     return SOrderItem.model_validate(order_item)
 
 
-@router.delete('/{order_id}/menu-items/{item_id}')
+@router.delete('/{order_id}/menu-items/{menu_item_id}')
 async def delete_order_item(order_id: int, menu_item_id: int,
                             order_item_service: OrderItemsService = Depends(order_items_service),
                             order_service: OrdersService = Depends(orders_service),
