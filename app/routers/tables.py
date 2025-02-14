@@ -67,6 +67,7 @@ async def delete_table(table_id: int, table_service: TablesService = Depends(tab
 async def get_table_orders(table_id: int, filters: STableOrdersFilter = Depends(),
                            table_service: TablesService = Depends(tables_service),
                            order_service: OrdersService = Depends(orders_service)) -> list[SOrderPublicResponse]:
+    print(1)
     if not filters.current_only:
         raise HTTPException(status_code=403, detail="Forbidden. Try to use current_only=true parameter")
     orders = await order_service.get_all({'table_id': table_id, 'paid': False})

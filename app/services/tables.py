@@ -1,10 +1,8 @@
 from fastapi import HTTPException
 
-from app.models.orders import OrderItem
 from app.models.tables import Table
 from app.schemas.tables import STableAdd
 from app.services.crud_base import BaseCRUDService
-from app.services.orders import OrderItemsService
 
 
 class TablesService(BaseCRUDService):
