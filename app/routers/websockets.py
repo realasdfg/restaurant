@@ -7,10 +7,10 @@ from app.services.users import UsersService
 from app.utils.users import get_current_user
 from app.services.websockets import handle_websocket
 
-router = APIRouter()
+router = APIRouter(prefix="/ws")
 
 
-@router.websocket("/ws/orders")
+@router.websocket("/orders")
 async def websocket_orders(websocket: WebSocket, token: str = Query(...),
                            user_service: UsersService = Depends(users_service)):
     try:
@@ -20,7 +20,7 @@ async def websocket_orders(websocket: WebSocket, token: str = Query(...),
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
 
 
-@router.websocket("/ws/orders/{order_id}")
+@router.websocket("/orders/{order_id}")
 async def websocket_order_detail(websocket: WebSocket, order_id: int, token: str = Query(...),
                                  user_service: UsersService = Depends(users_service)):
     try:
@@ -30,7 +30,7 @@ async def websocket_order_detail(websocket: WebSocket, order_id: int, token: str
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
 
 
-@router.websocket("/ws/tables")
+@router.websocket("/tables")
 async def websocket_tables(websocket: WebSocket, token: str = Query(...),
                            user_service: UsersService = Depends(users_service)):
     try:

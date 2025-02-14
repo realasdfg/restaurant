@@ -3,8 +3,7 @@ import json
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import List, Dict
 
-from app.schemas.orders import SOrder, SOrderItem
-from app.schemas.tables import STable
+from app.schemas.websockets import SOrderBroadcast, SOrderItemBroadcast, STableBroadcast
 
 active_connections: Dict[str, List[WebSocket]] = {
     "orders": [],
@@ -41,24 +40,27 @@ async def broadcast_update(connection_type: str, data):
         await connection.send_text(data)
 
 
-async def broadcast_order(order=None, order_item=None, deleted=False):
-    if order:
-        json_data = SOrder.model_validate(order).model_dump_json()
-        await broadcast_update("orders", json_data)
+async def broadcast_order_update(order_id: int, data):
+    for connection in order_connections[order_id]:
+        await connection.send_text(data)
 
-        if order.id in order_connections:
-            for connection in order_connections[order.id]:
-                await connection.send_text(json_data)
 
-    if order_item:
-        if deleted:
-            json_data = json.dumps({'id': order_item.id, 'deleted': True})
-        else:
-            json_data = SOrderItem.model_validate(order_item).model_dump_json()
-        if order_item.order.id in order_connections:
-            for connection in order_connections[order_item.order.id]:
-                await connection.send_text(json_data)
+async def broadcast_order(order):
+    json_data = SOrderBroadcast.model_validate(order).model_dump_json()
+    await broadcast_update("orders", json_data)
+
+    if order.id in order_connections:
+        await broadcast_order_update(order.id, json_data)
+
+
+async def broadcast_order_item(order_item, deleted=False):
+    if deleted:
+        json_data = json.dumps({'id': order_item.id, 'deleted': True, 'broadcast_type': 'order_item'})
+    else:
+        json_data = SOrderItemBroadcast.model_validate(order_item).model_dump_json()
+    if order_item.order.id in order_connections:
+        await broadcast_order_update(order_item.order.id, json_data)
 
 
 async def broadcast_table(table):
-    await broadcast_update("tables", STable.model_validate(table).model_dump_json())
+    await broadcast_update("tables", STableBroadcast.model_validate(table).model_dump_json())
