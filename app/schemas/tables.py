@@ -15,3 +15,7 @@ class STable(STableAdd):
 
     class Config:
         from_attributes = True
+
+
+class STableOrdersFilter(BaseModel):
+    current_only: bool = True

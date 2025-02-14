@@ -63,6 +63,18 @@ class SOrder(SOrderAdd):
         from_attributes = True
 
 
+class SOrderPublicResponse(BaseModel):
+    id: int
+    type: OrderTypeEnum
+    table_id: int | None = None
+    created_at: datetime
+    paid: bool = False
+    paid_online: bool = False
+
+    class Config:
+        from_attributes = True
+
+
 class SOrderFilter(BaseModel):
     paid: bool | None = None
     from_created_date: datetime | None = None

@@ -1,10 +1,12 @@
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy.exc import IntegrityError
 
-from app.dependencies import tables_service
+from app.dependencies import tables_service, orders_service
 from app.models.users import User
-from app.schemas.tables import STableAdd, STable
+from app.schemas.orders import SOrderPublicResponse
+from app.schemas.tables import STableAdd, STable, STableOrdersFilter
 from app.models.enums import RoleEnum
+from app.services.orders import OrdersService
 from app.services.tables import TablesService
 from app.utils.users import get_current_user_if_role
 
@@ -59,3 +61,13 @@ async def delete_table(table_id: int, table_service: TablesService = Depends(tab
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"status": 200, "detail": f"Table with id {table_id} deleted"}
+
+
+@router.get('/{table_id}/orders')
+async def get_table_orders(table_id: int, filters: STableOrdersFilter = Depends(),
+                           table_service: TablesService = Depends(tables_service),
+                           order_service: OrdersService = Depends(orders_service)) -> list[SOrderPublicResponse]:
+    if not filters.current_only:
+        raise HTTPException(status_code=403, detail="Forbidden. Try to use current_only=true parameter")
+    orders = await order_service.get_all({'table_id': table_id, 'paid': False})
+    return [SOrderPublicResponse.model_validate(order) for order in orders]

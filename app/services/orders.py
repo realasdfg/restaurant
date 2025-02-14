@@ -23,17 +23,17 @@ class OrdersService(BaseCRUDService):
                 raise HTTPException(status_code=400, detail="Table is already occupied")
         order_dict = order_data.model_dump()
         order_dict["created_by"] = current_user.id
-        order = await self._create(order_dict)
+        order = await self.create(order_dict)
         if order_data.type == OrderTypeEnum.DINEIN:
             await table_service.set_is_free(order_data.table_id, False)
         return order
 
     async def get_orders(self, filters: SOrderFilter) -> list[Order]:
         filters_dict = filters.to_query_filters()
-        return await self._get_all(filters_dict, Order.created_at.desc())
+        return await self.get_all(filters_dict, Order.created_at.desc())
 
     async def get_order_by_id(self, order_id) -> Order | None:
-        return await self._get_one({'id': order_id})
+        return await self.get_one({'id': order_id})
 
     async def update_order_info(self, order: Order, order_data: SOrderEdit, table_service: TablesService) -> Order:
         order_data_dict = order_data.model_dump(exclude_unset=True)
@@ -46,7 +46,7 @@ class OrdersService(BaseCRUDService):
             if not new_table.is_free:
                 raise HTTPException(status_code=400, detail="Table is already occupied.")
 
-        updated_order = await self._update(order.id, order_data_dict)
+        updated_order = await self.update(order.id, order_data_dict)
         if order.table_id is not None:
             await table_service.set_is_free(order.table_id, True)
         if updated_order.table_id is not None:
@@ -75,7 +75,7 @@ class OrdersService(BaseCRUDService):
                                     detail=f"Total order items sum ({total_sum}) must be equal to provided sum ({provided_sum})")
             order_data_dict['paid_at'] = datetime.now()
         order_data_dict['paid_by'] = current_user.id
-        updated_order = await self._update(order.id, order_data_dict)
+        updated_order = await self.update(order.id, order_data_dict)
         if order.table:
             await table_service.set_is_free(updated_order.table_id, True)
         return updated_order
@@ -87,7 +87,7 @@ class OrdersService(BaseCRUDService):
         order_data_dict['paid_at'] = datetime.now()
         order_data_dict['paid_by_card'] = ((await self.calculate_order_total_sum(order=order))
                                            .quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
-        updated_order = await self._update(order.id, order_data_dict)
+        updated_order = await self.update(order.id, order_data_dict)
         return updated_order
 
     async def calculate_order_total_sum(self, order_id: int = None, order: Order = None) -> Decimal:
@@ -120,13 +120,13 @@ class OrderItemsService(BaseCRUDService):
             'type': menu_item.type,
             'weight': menu_item.weight,
         }
-        return await self._create(order_item_dict)
+        return await self.create(order_item_dict)
 
     async def get_order_items(self, order_id: int, order_service: OrdersService) -> list[OrderItem]:
         order = await order_service.get_order_by_id(order_id)
         if order is None:
             raise ValueError("Order not found")
-        return await self._get_all({'order_id': order_id})
+        return await self.get_all({'order_id': order_id})
 
     async def get_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
                              menu_item_service: MenuItemsService) -> OrderItem | None:
@@ -136,7 +136,7 @@ class OrderItemsService(BaseCRUDService):
         menu_item = await menu_item_service.get_menu_item_by_id(menu_item_id)
         if menu_item is None:
             raise ValueError("Menu item not found")
-        return await self._get_one({'order_id': order_id, 'menu_item_id': menu_item_id})
+        return await self.get_one({'order_id': order_id, 'menu_item_id': menu_item_id})
 
     async def update_order_item_quantity(self, order_id: int, menu_item_id: int, order_item_data: SOrderItemAddOrEdit,
                                          order_service: OrdersService, menu_item_service: MenuItemsService
@@ -149,11 +149,11 @@ class OrderItemsService(BaseCRUDService):
             quantity = order_item.quantity + 1
         else:
             quantity = order_item_data.quantity
-        return await self._update(order_item.id, {'quantity': quantity})
+        return await self.update(order_item.id, {'quantity': quantity})
 
     async def delete_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
                                 menu_item_service: MenuItemsService) -> OrderItem:
         order_item = await self.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
         if order_item is None:
             raise ValueError("Order item not found")
-        return await self._delete(order_item.id)
+        return await self.delete(order_item.id)
