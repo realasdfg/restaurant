@@ -1,3 +1,5 @@
+from fastapi import HTTPException
+
 from app.models.tables import Table
 from app.schemas.tables import STableAdd
 from app.services.crud_base import BaseCRUDService
@@ -23,10 +25,12 @@ class TablesService(BaseCRUDService):
         return updated_table
 
     async def delete_table_by_id(self, table_id: int) -> Table:
-        deleted_table = await self._delete(table_id)
-        if not deleted_table:
+        table = await self.get_table_by_id(table_id)
+        if not table:
             raise ValueError("Table not found")
-        return deleted_table
+        if not table.is_free:
+            raise HTTPException(status_code=400, detail="Cannot delete occupied table")
+        return await self._delete(table_id)
 
     async def set_is_free(self, table_id: int, is_free: bool) -> Table:
         table = await self.get_table_by_id(table_id)
