@@ -25,7 +25,10 @@ class MenuCategoriesService(BaseCRUDService):
             raise ValueError("Category not found")
         return updated_category
 
-    async def delete_menu_category_by_id(self, category_id: int) -> MenuCategory:
+    async def delete_menu_category_by_id(self, category_id: int, item_service: 'MenuItemsService') -> MenuCategory:
+        menu_items = await item_service._get_all({'category_id': category_id})
+        if menu_items:
+            raise HTTPException(status_code=400, detail="Cannot delete category with items")
         deleted_category = await self._delete(category_id)
         if not deleted_category:
             raise ValueError("Category not found")

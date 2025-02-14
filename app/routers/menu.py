@@ -58,9 +58,10 @@ async def update_menu_category(category_id: int, menu_category_data: SMenuCatego
 @router.delete('/menu-categories/{category_id}')
 async def delete_menu_category(category_id: int,
                                category_service: MenuCategoriesService = Depends(menu_categories_service),
+                               item_service: MenuItemsService = Depends(menu_items_service),
                                current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
     try:
-        await category_service.delete_menu_category_by_id(category_id)
+        await category_service.delete_menu_category_by_id(category_id, item_service)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"status": 200, "detail": f"Category with id {category_id} deleted"}
