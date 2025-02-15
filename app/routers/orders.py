@@ -3,11 +3,14 @@ from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import orders_service, tables_service, menu_items_service, order_items_service
 from app.models.users import User
+from app.repositories.orders import OrdersRepository
 from app.schemas.orders import SOrder, SOrderAdd, SOrderEdit, SOrderItem, SOrderFilter, SOrderItemAddOrEdit, \
     SOrderItemPublicResponse
 from app.models.enums import RoleEnum
+from app.schemas.statistics import SOrdersRevenue
 from app.services.menu import MenuItemsService
 from app.services.orders import OrdersService, OrderItemsService
+from app.services.statistics import StatisticsService
 from app.services.tables import TablesService
 from app.utils.users import get_current_user_if_role, has_access, get_current_user, get_current_user_if_role_or_none
 from app.services.websockets import broadcast_order, broadcast_table, broadcast_order_item
@@ -16,6 +19,21 @@ router = APIRouter(
     prefix='/orders',
     tags=['Orders']
 )
+
+
+@router.get("/revenue")
+async def get_orders_revenue(filters: SOrdersRevenue = Depends(),
+                             statistics_service: StatisticsService = Depends(
+                                 lambda: StatisticsService(OrdersRepository())),
+                             current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
+    return await statistics_service.get_total_profit(filters)
+
+@router.get("/revenue/daily")
+async def get_daily_revenue(filters: SOrdersRevenue = Depends(),
+                            statistics_service: StatisticsService = Depends(
+                                lambda: StatisticsService(OrdersRepository())),
+                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
+    return await statistics_service.get_daily_profit(filters)
 
 
 @router.post('')
