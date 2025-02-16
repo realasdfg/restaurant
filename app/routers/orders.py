@@ -78,7 +78,9 @@ async def get_order(order_id: int, order_service: OrdersService = Depends(orders
 async def update_order(order_id: int, order_data: SOrderEdit,
                        order_service: OrdersService = Depends(orders_service),
                        table_service: TablesService = Depends(tables_service),
-                       current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
+                       current_user: User = Depends(get_current_user_if_role_or_none(RoleEnum.STAFF))) -> SOrder:
+    if current_user is None and order_data.paid_online is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     order = await order_service.get_order_by_id(order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
