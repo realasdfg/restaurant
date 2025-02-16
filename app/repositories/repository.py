@@ -103,6 +103,5 @@ class SQLAlchemyRepository(AbstractRepository):
                 elif operator == "<=":
                     conditions.append(column <= value)
             else:
-                # Стандартні перевірки типу "field == value"
                 conditions.append(getattr(self.model, key) == value)
         return conditions

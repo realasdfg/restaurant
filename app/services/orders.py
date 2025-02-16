@@ -1,5 +1,5 @@
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, ROUND_FLOOR
 
 from fastapi import HTTPException
 
@@ -68,8 +68,7 @@ class OrdersService(BaseCRUDService):
 
             provided_sum = order_data_dict.get('paid_by_card') if order_data_dict.get('paid_by_card') else Decimal(0)
             provided_sum += order_data_dict.get('paid_by_cash') if order_data_dict.get('paid_by_cash') else Decimal(0)
-            total_sum = ((await self.calculate_order_total_sum(order=order))
-                         .quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+            total_sum = await self.calculate_order_total_sum(order=order)
             if provided_sum != total_sum:
                 raise HTTPException(status_code=400,
                                     detail=f"Total order items sum ({total_sum}) must be equal to provided sum ({provided_sum})")
@@ -85,8 +84,7 @@ class OrdersService(BaseCRUDService):
             raise HTTPException(status_code=400, detail="Can't provide order payment with 0 total sum order")
         order_data_dict = order_data.model_dump(exclude_unset=True)
         order_data_dict['paid_at'] = datetime.now()
-        order_data_dict['paid_by_card'] = ((await self.calculate_order_total_sum(order=order))
-                                           .quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        order_data_dict['paid_by_card'] = await self.calculate_order_total_sum(order=order)
         updated_order = await self.update(order.id, order_data_dict)
         return updated_order
 
@@ -95,8 +93,11 @@ class OrdersService(BaseCRUDService):
             order = await self.get_order_by_id(order_id)
             if order is None:
                 raise ValueError("Order not found")
-        return Decimal(sum(item.price * item.quantity if item.type == MenuItemTypeEnum.BY_QUANTITY
-                           else (item.quantity / Decimal(item.weight)) * item.price for item in order.order_items))
+        return Decimal(sum((item.price * item.quantity).quantize(Decimal('0.01'), rounding=ROUND_FLOOR)
+                           if item.type == MenuItemTypeEnum.BY_QUANTITY
+                           else ((item.quantity / Decimal(item.weight)) * item.price)
+                           .quantize(Decimal('0.01'), rounding=ROUND_FLOOR)
+                           for item in order.order_items))
 
 
 class OrderItemsService(BaseCRUDService):
