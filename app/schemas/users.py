@@ -28,8 +28,9 @@ class SUser(SBaseUser):
         from_attributes = True
 
 
-class SUserEdit(SBaseUser):
-    username: str = Field(None, min_length=3, max_length=30)
-    first_name: str = Field(None, min_length=1, max_length=30)
-    last_name: str = Field(None, min_length=1, max_length=30)
-    role: RoleEnum = None
+class SUserEdit(SUserAdd):
+    username: str | None = Field(None, min_length=3, max_length=30)
+    first_name: str | None = Field(None, min_length=1, max_length=30)
+    last_name: str | None = Field(None, min_length=1, max_length=30)
+    role: RoleEnum | None = None
+    password: str | None = Field(None, min_length=8)

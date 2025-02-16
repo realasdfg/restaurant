@@ -8,9 +8,9 @@ from app.utils.auth import get_password_hash
 
 class UsersService(BaseCRUDService):
 
-    async def add_user(self, user: SUserAdd) -> User:
-        hashed_password = get_password_hash(user.password)
-        user_dict = user.model_dump()
+    async def add_user(self, user_data: SUserAdd) -> User:
+        hashed_password = get_password_hash(user_data.password)
+        user_dict = user_data.model_dump()
         user_dict['password'] = hashed_password
         return await self.create(user_dict)
 
@@ -27,7 +27,11 @@ class UsersService(BaseCRUDService):
         if edit_user_data.role and user.id == current_user.id:
             raise HTTPException(status_code=403, detail="Admin cannot change his own role")
 
-        edit_user_dict = edit_user_data.model_dump(exclude_unset=True)
+        edit_user_dict = edit_user_data.model_dump(exclude_none=True)
+        if edit_user_data.password:
+            hashed_password = get_password_hash(edit_user_data.password)
+            edit_user_dict['password'] = hashed_password
+
         return await self.update(user_id, edit_user_dict)
 
     async def delete_user_by_id(self, user_id, current_user: User) -> User:
