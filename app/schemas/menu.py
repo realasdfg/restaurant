@@ -23,7 +23,6 @@ class SMenuCategory(SMenuCategoryAdd):
 class SMenuItemAdd(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     description: str | None = Field(None, max_length=256)
-    image: str | None = None
     price: Decimal = Field(..., ge=0)
     cost: Decimal = Field(..., ge=0)
     type: MenuItemTypeEnum
@@ -31,14 +30,10 @@ class SMenuItemAdd(BaseModel):
     available: bool = True
     category_id: int
 
-    class Config:
-        extra = 'forbid'
-
 
 class SMenuItemEdit(SMenuItemAdd):
     name: str = Field(None, min_length=1, max_length=50)
     description: str | None = Field(None, max_length=256)
-    image: str | None = None
     price: Decimal = Field(None, ge=0)
     cost: Decimal = Field(None, ge=0)
     type: MenuItemTypeEnum = None
@@ -49,6 +44,7 @@ class SMenuItemEdit(SMenuItemAdd):
 
 class SMenuItem(SMenuItemAdd):
     id: int
+    image: str | None = None
     is_deleted: bool = False
 
     class Config:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.exc import IntegrityError
 
 from app.dependencies import menu_categories_service, menu_items_service
@@ -68,11 +68,20 @@ async def delete_menu_category(category_id: int,
 
 
 @router.post('/menu-items')
-async def add_menu_item(menu_item_data: SMenuItemAdd, item_service: MenuItemsService = Depends(menu_items_service),
+async def add_menu_item(menu_item_data: str = Form(...), image: UploadFile = File(...),
+                        item_service: MenuItemsService = Depends(menu_items_service),
                         category_service: MenuCategoriesService = Depends(menu_categories_service),
-                        current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItem:
+                        current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
     try:
-        item = await item_service.add_menu_item(menu_item_data, category_service)
+        menu_item = SMenuItemAdd.model_validate_json(menu_item_data)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON data")
+
+    if not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only image files are allowed.")
+
+    try:
+        item = await item_service.add_menu_item(menu_item, image, category_service)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except IntegrityError:
@@ -108,12 +117,21 @@ async def get_menu_item(item_id: int, item_service: MenuItemsService = Depends(m
 
 
 @router.patch('/menu-items/{item_id}')
-async def update_menu_item(item_id: int, menu_item_data: SMenuItemEdit,
+async def update_menu_item(item_id: int, menu_item_data: str | None = Form(None), image: UploadFile | None = File(None),
                            item_service: MenuItemsService = Depends(menu_items_service),
                            category_service: MenuCategoriesService = Depends(menu_categories_service),
                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItem:
+    menu_item = None
     try:
-        item = await item_service.update_menu_item_by_id(item_id, menu_item_data, category_service)
+        if menu_item_data:
+            menu_item = SMenuItemEdit.model_validate_json(menu_item_data)
+    except Exception :
+        raise HTTPException(status_code=400, detail="Invalid JSON data")
+
+    if image and not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Only image files are allowed.")
+    try:
+        item = await item_service.update_menu_item_by_id(item_id, category_service, menu_item, image)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return SMenuItem.model_validate(item)

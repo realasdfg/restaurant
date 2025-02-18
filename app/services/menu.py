@@ -1,5 +1,9 @@
-from fastapi import HTTPException
+import uuid
+from pathlib import Path
 
+from fastapi import HTTPException, UploadFile
+
+from app.config import settings
 from app.models.menu import MenuCategory, MenuItem
 from app.models.users import User
 from app.schemas.menu import SMenuCategoryAdd, SMenuItemAdd, SMenuItemEdit, SMenuItemFilter
@@ -36,13 +40,16 @@ class MenuCategoriesService(BaseCRUDService):
 
 
 class MenuItemsService(BaseCRUDService):
-
-    async def add_menu_item(self, menu_item: SMenuItemAdd, category_service: MenuCategoriesService) -> MenuItem:
-        category = await category_service.get_menu_category_by_id(menu_item.category_id)
+    async def add_menu_item(self, menu_item_data: SMenuItemAdd, image: UploadFile,
+                            category_service: MenuCategoriesService) -> MenuItem:
+        category = await category_service.get_menu_category_by_id(menu_item_data.category_id)
         if not category:
             raise ValueError("Category not found")
 
-        item_dict = menu_item.model_dump()
+        unique_name = await self._write_image(image)
+
+        item_dict = menu_item_data.model_dump()
+        item_dict['image'] = f"images/{unique_name}"
         return await self.create(item_dict)
 
     async def get_menu_items(self, filters: SMenuItemFilter, admin_user: User | None = None) -> list[MenuItem]:
@@ -56,13 +63,20 @@ class MenuItemsService(BaseCRUDService):
     async def get_menu_item_by_id(self, item_id) -> MenuItem | None:
         return await self.get_one({'id': item_id})
 
-    async def update_menu_item_by_id(self, item_id, edit_menu_item_data: SMenuItemEdit,
-                                     category_service: MenuCategoriesService) -> MenuItem:
-        if edit_menu_item_data.category_id is not None:
-            category = await category_service.get_menu_category_by_id(edit_menu_item_data.category_id)
-            if not category:
-                raise ValueError("Category not found")
-        edit_item_dict = edit_menu_item_data.model_dump(exclude_unset=True)
+    async def update_menu_item_by_id(self, item_id, category_service: MenuCategoriesService,
+                                     edit_menu_item_data: SMenuItemEdit | None = None,
+                                     image: UploadFile | None = None) -> MenuItem:
+        edit_item_dict = {}
+        if edit_menu_item_data is not None:
+            if edit_menu_item_data.category_id is not None:
+                category = await category_service.get_menu_category_by_id(edit_menu_item_data.category_id)
+                if not category:
+                    raise ValueError("Category not found")
+            edit_item_dict = edit_menu_item_data.model_dump(exclude_unset=True)
+        if image is not None:
+            unique_name = await self._write_image(image)
+            edit_item_dict['image'] = f"images/{unique_name}"
+
         updated_item = await self.update(item_id, edit_item_dict)
         if not updated_item:
             raise ValueError("Menu item not found")
@@ -73,3 +87,11 @@ class MenuItemsService(BaseCRUDService):
         if deleted_item is None:
             raise ValueError("Menu item not found")
         return deleted_item
+
+    async def _write_image(self, image):
+        ext = image.filename.split(".")[-1].lower()
+        unique_name = f"{uuid.uuid4().hex}.{ext}"
+        file_path = Path(settings.file_upload_dir) / unique_name
+        with open(file_path, "wb") as f:
+            f.write(await image.read())
+        return unique_name
