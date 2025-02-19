@@ -11,11 +11,11 @@ class TablesService(BaseCRUDService):
         table_dict = table_data.model_dump()
         return await self.create(table_dict)
 
-    async def get_tables(self) -> list[Table]:
-        return await self.get_all()
+    async def get_tables(self, include_deleted: bool) -> list[Table]:
+        return await self.get_all(include_deleted=include_deleted)
 
-    async def get_table_by_id(self, table_id) -> Table | None:
-        return await self.get_one({'id': table_id})
+    async def get_table_by_id(self, table_id: int, include_deleted: bool = False) -> Table | None:
+        return await self.get_one({'id': table_id}, include_deleted)
 
     async def update_table_by_id(self, table_id: int, edit_table_data: STableAdd) -> Table:
         edit_table_dict = edit_table_data.model_dump()
