@@ -11,7 +11,7 @@ class SOrdersRevenue(BaseModel):
     to_date: datetime
     type: OrderTypeEnum | None = None
     category_id: int | None = None
-    period: str = 'daily'
+    period: str | None = None
     paid_online: bool | None = None
 
     class Config:
@@ -21,7 +21,7 @@ class SOrdersRevenue(BaseModel):
     def validate(self):
         if self.from_date > self.to_date:
             raise HTTPException(status_code=422, detail="from_date should be earlier than to_date")
-        if self.period not in ['daily', 'weekly', 'monthly']:
+        if self.period not in ['daily', 'weekly', 'monthly', None]:
             raise HTTPException(status_code=422, detail="Invalid period. Allowed values: daily, weekly, monthly.")
         return self
 

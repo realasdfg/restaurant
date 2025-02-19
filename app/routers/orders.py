@@ -26,14 +26,10 @@ async def get_orders_revenue(filters: SOrdersRevenue = Depends(),
                              statistics_service: StatisticsService = Depends(
                                  lambda: StatisticsService(OrdersRepository())),
                              current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
-    return await statistics_service.get_total_profit(filters)
-
-@router.get("/revenue/daily")
-async def get_daily_revenue(filters: SOrdersRevenue = Depends(),
-                            statistics_service: StatisticsService = Depends(
-                                lambda: StatisticsService(OrdersRepository())),
-                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
-    return await statistics_service.get_daily_profit(filters)
+    if filters.period:
+        return await statistics_service.get_periodical_profit(filters)
+    else:
+        return await statistics_service.get_total_profit(filters)
 
 
 @router.post('')
