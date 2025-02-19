@@ -16,11 +16,11 @@ class MenuCategoriesService(BaseCRUDService):
         category_dict = menu_category_data.model_dump()
         return await self.create(category_dict)
 
-    async def get_menu_categories(self) -> list[MenuCategory]:
-        return await self.get_all(order_by=MenuCategory.id)
+    async def get_menu_categories(self, include_deleted: bool = False) -> list[MenuCategory]:
+        return await self.get_all(order_by=MenuCategory.id, include_deleted=include_deleted)
 
-    async def get_menu_category_by_id(self, category_id) -> MenuCategory | None:
-        return await self.get_one({'id': category_id})
+    async def get_menu_category_by_id(self, category_id, include_deleted: bool = False) -> MenuCategory | None:
+        return await self.get_one({'id': category_id}, include_deleted)
 
     async def update_menu_category_by_id(self, category_id: int, menu_category_data: SMenuCategoryAdd) -> MenuCategory:
         edit_category_dict = menu_category_data.model_dump()
@@ -52,16 +52,17 @@ class MenuItemsService(BaseCRUDService):
         item_dict['image'] = f"images/{unique_name}"
         return await self.create(item_dict)
 
-    async def get_menu_items(self, filters: SMenuItemFilter, admin_user: User | None = None) -> list[MenuItem]:
+    async def get_menu_items(self, filters: SMenuItemFilter, admin_user: User | None = None,
+                             include_deleted: bool = False) -> list[MenuItem]:
         if admin_user is None:
             if filters.available is False:
                 raise HTTPException(status_code=403, detail="Forbidden")
             filters.available = True
         filters_dict = filters.model_dump(exclude_none=True)
-        return await self.get_all(filters_dict, order_by=MenuItem.id)
+        return await self.get_all(filters_dict, order_by=MenuItem.id, include_deleted=include_deleted)
 
-    async def get_menu_item_by_id(self, item_id) -> MenuItem | None:
-        return await self.get_one({'id': item_id})
+    async def get_menu_item_by_id(self, item_id, include_deleted: bool = False) -> MenuItem | None:
+        return await self.get_one({'id': item_id}, include_deleted)
 
     async def update_menu_item_by_id(self, item_id, category_service: MenuCategoriesService,
                                      edit_menu_item_data: SMenuItemEdit | None = None,
