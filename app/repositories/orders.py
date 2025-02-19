@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta, datetime
 
 from sqlalchemy import select, func, case, cast, Date
 
@@ -38,20 +38,31 @@ class OrdersRepository(SQLAlchemyRepository):
 
         return revenue_expr, cost_expr
 
-    async def _aggregate_profit_query(self, filters: SOrdersRevenue, group_by_date=False):
+    async def _aggregate_profit_query(self, filters: SOrdersRevenue, period: str = None):
         """
         Формує запит для підрахунку:
-         - total_revenue: сумарного доходу за OrderItem,
-         - total_cost: сумарних витрат за OrderItem,
-         - total_profit: різниці між доходом та витратами.
+         - total_revenue, total_cost, total_profit.
 
-        Якщо filters.category_id заданий, враховуються лише OrderItem, у яких
-        відповідний MenuItem має задане category_id.
+        Якщо period заданий ("daily", "weekly" або "monthly"), дані групуються за відповідним періодом.
+        Фільтрування за категорією здійснюється, якщо filters.category_id заданий.
         """
         revenue_expr, cost_expr = self._get_revenue_and_cost_expr()
 
+        # Отримуємо групувальний вираз відповідно до обраного періоду
+        group_expr = None
+        if period:
+            period = period.lower()
+            if period == "daily":
+                group_expr = cast(self.model.created_at, Date)
+            elif period == "weekly":
+                group_expr = func.date_trunc('week', self.model.created_at)
+            elif period == "monthly":
+                group_expr = func.date_trunc('month', self.model.created_at)
+            else:
+                raise ValueError("Invalid period. Allowed values: daily, weekly, monthly.")
+
         stmt = select(
-            *([cast(self.model.created_at, Date).label("date")] if group_by_date else []),
+            *([group_expr.label("date")] if group_expr is not None else []),
             func.coalesce(func.sum(revenue_expr), 0).label("total_revenue"),
             func.coalesce(func.sum(cost_expr), 0).label("total_cost"),
             func.coalesce(func.sum(revenue_expr) - func.sum(cost_expr), 0).label("total_profit")
@@ -65,16 +76,16 @@ class OrdersRepository(SQLAlchemyRepository):
             stmt = stmt.filter(self.model.type == filters.type)
 
         if filters.category_id:
-            # Приєднуємо MenuItem через зв'язок OrderItem.menu_item та застосовуємо фільтр
             stmt = stmt.join(OrderItem.menu_item).filter(MenuItem.category_id == filters.category_id)
 
-        if group_by_date:
+        if group_expr is not None:
             stmt = stmt.group_by("date").order_by("date")
 
         async with async_session() as session:
             result = await session.execute(stmt)
 
-        return result.all() if group_by_date else result.mappings().first()
+        # Для агрегованих запитів повертаємо мапінг (словники)
+        return result.mappings().all() if group_expr is not None else result.mappings().first()
 
     async def get_total_profit(self, filters: SOrdersRevenue):
         """Повертає загальний total_revenue, total_cost та total_profit за період із можливістю фільтрації за категорією."""
@@ -83,19 +94,75 @@ class OrdersRepository(SQLAlchemyRepository):
         }
 
     async def get_daily_profit(self, filters: SOrdersRevenue):
-        """Повертає список з розбивкою по днях (date, total_revenue, total_cost, total_profit) за вказаний період із фільтрацією за категорією."""
-        result = await self._aggregate_profit_query(filters, group_by_date=True)
+        """
+        Повертає список з розбивкою за періодами (daily, weekly, monthly):
+        кожна група містить: date, total_revenue, total_cost, total_profit.
+        """
+        period = filters.period if filters.period else "daily"
+        result = await self._aggregate_profit_query(filters, period=period)
+        period = period.lower()
 
-        revenue_data = {row.date: {"total_revenue": row.total_revenue,
-                                   "total_cost": row.total_cost,
-                                   "total_profit": row.total_profit}
-                        for row in result}
+        if period == 'daily':
+            # Створюємо словник з даними з запиту
+            revenue_data = {row['date']: {
+                "total_revenue": row['total_revenue'],
+                "total_cost": row['total_cost'],
+                "total_profit": row['total_profit']
+            } for row in result}
+            full_dates = [filters.from_date.date() + timedelta(days=i)
+                          for i in range((filters.to_date.date() - filters.from_date.date()).days + 1)]
+            return [
+                {"date": date,
+                 **revenue_data.get(date, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
+                for date in full_dates
+            ]
 
-        full_dates = [filters.from_date.date() + timedelta(days=i)
-                      for i in range((filters.to_date.date() - filters.from_date.date()).days + 1)]
+        elif period == 'weekly':
+            # Обчислюємо початок тижня для from_date та to_date (припускаємо, що тиждень починається з понеділка)
+            start_week = filters.from_date.date() - timedelta(days=filters.from_date.date().weekday())
+            end_week = filters.to_date.date() - timedelta(days=filters.to_date.date().weekday())
+            full_weeks = []
+            cur = start_week
+            while cur <= end_week:
+                full_weeks.append(cur)
+                cur += timedelta(days=7)
+            revenue_data = {(row['date'].date() if isinstance(row['date'], datetime) else row['date']): {
+                "total_revenue": row['total_revenue'],
+                "total_cost": row['total_cost'],
+                "total_profit": row['total_profit']
+            } for row in result}
+            return [
+                {"date": week,
+                 **revenue_data.get(week, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
+                for week in full_weeks
+            ]
 
-        return [
-            {"date": date,
-             **revenue_data.get(date, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
-            for date in full_dates
-        ]
+        elif period == 'monthly':
+            # Обчислюємо перший день місяця для from_date та to_date
+            def first_day_of_month(date_obj):
+                return date_obj.replace(day=1)
+
+            start_month = first_day_of_month(filters.from_date.date())
+            end_month = first_day_of_month(filters.to_date.date())
+            full_months = []
+            cur = start_month
+            while cur <= end_month:
+                full_months.append(cur)
+                # Обчислюємо наступний місяць
+                if cur.month == 12:
+                    cur = cur.replace(year=cur.year + 1, month=1)
+                else:
+                    cur = cur.replace(month=cur.month + 1)
+            revenue_data = {(row['date'].date() if isinstance(row['date'], datetime) else row['date']): {
+                "total_revenue": row['total_revenue'],
+                "total_cost": row['total_cost'],
+                "total_profit": row['total_profit']
+            } for row in result}
+            return [
+                {"date": month,
+                 **revenue_data.get(month, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
+                for month in full_months
+            ]
+
+        else:
+            raise ValueError("Invalid period. Allowed values: daily, weekly, monthly.")
