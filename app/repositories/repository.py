@@ -50,8 +50,8 @@ class SQLAlchemyRepository(AbstractRepository):
 
     async def find_all(self, filters: dict = None, order_by=None, include_deleted: bool = False):
         async with async_session() as session:
+            filters = filters or {}
             if self.soft_delete_field and not include_deleted:
-                filters = filters or {}
                 filters[self.soft_delete_field] = False
 
             stmt = select(self.model)
