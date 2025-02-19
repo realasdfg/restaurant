@@ -14,11 +14,11 @@ class UsersService(BaseCRUDService):
         user_dict['password'] = hashed_password
         return await self.create(user_dict)
 
-    async def get_users(self, filters: dict = None) -> list[User]:
-        return await self.get_all(filters, User.id)
+    async def get_users(self, filters: dict = None, include_deleted: bool = False) -> list[User]:
+        return await self.get_all(filters, User.id, include_deleted)
 
-    async def get_user_by_id(self, user_id) -> User | None:
-        return await self.get_one({'id': user_id})
+    async def get_user_by_id(self, user_id, include_deleted: bool = False) -> User | None:
+        return await self.get_one({'id': user_id}, include_deleted)
 
     async def update_user_by_id(self, user_id: int, edit_user_data: SUserEdit, current_user: User) -> User:
         user = await self.get_user_by_id(user_id)
