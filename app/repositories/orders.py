@@ -64,6 +64,8 @@ class OrdersRepository(SQLAlchemyRepository):
         stmt = select(
             *([group_expr.label("date")] if group_expr is not None else []),
             func.coalesce(func.sum(revenue_expr), 0).label("total_revenue"),
+            func.coalesce(func.sum(Order.paid_by_cash), 0).label("cash_revenue"),
+            func.coalesce(func.sum(Order.paid_by_card), 0).label("card_revenue"),
             func.coalesce(func.sum(cost_expr), 0).label("total_cost"),
             func.coalesce(func.sum(revenue_expr) - func.sum(cost_expr), 0).label("total_profit")
         ).select_from(self.model) \
@@ -78,6 +80,9 @@ class OrdersRepository(SQLAlchemyRepository):
         if filters.category_id:
             stmt = stmt.join(OrderItem.menu_item).filter(MenuItem.category_id == filters.category_id)
 
+        if filters.paid_online is not None:
+            stmt = stmt.filter(Order.paid_online == filters.paid_online)
+
         if group_expr is not None:
             stmt = stmt.group_by("date").order_by("date")
 
@@ -90,22 +95,27 @@ class OrdersRepository(SQLAlchemyRepository):
     async def get_total_profit(self, filters: SOrdersRevenue):
         """Повертає загальний total_revenue, total_cost та total_profit за період із можливістю фільтрації за категорією."""
         return await self._aggregate_profit_query(filters) or {
-            "total_revenue": 0, "total_cost": 0, "total_profit": 0
+            "total_revenue": 0, "cash_revenue": 0, "card_revenue": 0,
+            "total_cost": 0, "total_profit": 0
         }
 
-    async def get_daily_profit(self, filters: SOrdersRevenue):
+    async def get_periodical_profit(self, filters: SOrdersRevenue):
         """
         Повертає список з розбивкою за періодами (daily, weekly, monthly):
-        кожна група містить: date, total_revenue, total_cost, total_profit.
+         кожна група містить: date, total_revenue, cash_revenue, card_revenue, total_cost, total_profit.
+
+        Якщо для певного періоду даних немає, повертається об’єкт із нульовими значеннями.
         """
         period = filters.period if filters.period else "daily"
         result = await self._aggregate_profit_query(filters, period=period)
         period = period.lower()
 
         if period == 'daily':
-            # Створюємо словник з даними з запиту
+            # Формуємо дані для кожного дня
             revenue_data = {row['date']: {
                 "total_revenue": row['total_revenue'],
+                "cash_revenue": row['cash_revenue'],
+                "card_revenue": row['card_revenue'],
                 "total_cost": row['total_cost'],
                 "total_profit": row['total_profit']
             } for row in result}
@@ -113,12 +123,16 @@ class OrdersRepository(SQLAlchemyRepository):
                           for i in range((filters.to_date.date() - filters.from_date.date()).days + 1)]
             return [
                 {"date": date,
-                 **revenue_data.get(date, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
+                 **revenue_data.get(date, {"total_revenue": 0,
+                                           "cash_revenue": 0,
+                                           "card_revenue": 0,
+                                           "total_cost": 0,
+                                           "total_profit": 0})}
                 for date in full_dates
             ]
 
         elif period == 'weekly':
-            # Обчислюємо початок тижня для from_date та to_date (припускаємо, що тиждень починається з понеділка)
+            # Обчислюємо початок тижня для from_date та to_date (вважаємо, що тиждень починається з понеділка)
             start_week = filters.from_date.date() - timedelta(days=filters.from_date.date().weekday())
             end_week = filters.to_date.date() - timedelta(days=filters.to_date.date().weekday())
             full_weeks = []
@@ -128,12 +142,18 @@ class OrdersRepository(SQLAlchemyRepository):
                 cur += timedelta(days=7)
             revenue_data = {(row['date'].date() if isinstance(row['date'], datetime) else row['date']): {
                 "total_revenue": row['total_revenue'],
+                "cash_revenue": row['cash_revenue'],
+                "card_revenue": row['card_revenue'],
                 "total_cost": row['total_cost'],
                 "total_profit": row['total_profit']
             } for row in result}
             return [
                 {"date": week,
-                 **revenue_data.get(week, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
+                 **revenue_data.get(week, {"total_revenue": 0,
+                                           "cash_revenue": 0,
+                                           "card_revenue": 0,
+                                           "total_cost": 0,
+                                           "total_profit": 0})}
                 for week in full_weeks
             ]
 
@@ -155,12 +175,18 @@ class OrdersRepository(SQLAlchemyRepository):
                     cur = cur.replace(month=cur.month + 1)
             revenue_data = {(row['date'].date() if isinstance(row['date'], datetime) else row['date']): {
                 "total_revenue": row['total_revenue'],
+                "cash_revenue": row['cash_revenue'],
+                "card_revenue": row['card_revenue'],
                 "total_cost": row['total_cost'],
                 "total_profit": row['total_profit']
             } for row in result}
             return [
                 {"date": month,
-                 **revenue_data.get(month, {"total_revenue": 0, "total_cost": 0, "total_profit": 0})}
+                 **revenue_data.get(month, {"total_revenue": 0,
+                                            "cash_revenue": 0,
+                                            "card_revenue": 0,
+                                            "total_cost": 0,
+                                            "total_profit": 0})}
                 for month in full_months
             ]
 

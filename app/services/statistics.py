@@ -10,4 +10,4 @@ class StatisticsService:
         return await self._order_repo.get_total_profit(filters)
 
     async def get_daily_profit(self, filters: SOrdersRevenue):
-        return await self._order_repo.get_daily_profit(filters)
+        return await self._order_repo.get_periodical_profit(filters)
