@@ -13,7 +13,6 @@ from app.services.orders import OrdersService, OrderItemsService
 from app.services.statistics import StatisticsService
 from app.services.tables import TablesService
 from app.utils.users import get_current_user_if_role, has_access, get_current_user, get_current_user_if_role_or_none
-from app.services.websockets import broadcast_order, broadcast_table, broadcast_order_item
 
 router = APIRouter(
     prefix='/orders',
@@ -39,10 +38,6 @@ async def add_order(order_data: SOrderAdd,
                     current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> SOrder:
     try:
         order = await order_service.add_order(order_data, table_service, current_user)
-        await broadcast_order(order)
-        if order.table_id:
-            table = await table_service.get_table_by_id(order.table_id)
-            await broadcast_table(table)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except IntegrityError:
@@ -95,13 +90,6 @@ async def update_order(order_id: int, order_data: SOrderEdit,
         raise HTTPException(status_code=404, detail=str(e))
     except IntegrityError:
         raise HTTPException(status_code=400, detail="Failed to update order due to a database error.")
-    await broadcast_order(updated_order)
-    if updated_order.table_id:
-        table = await table_service.get_table_by_id(updated_order.table_id)
-        await broadcast_table(table)
-    if order.table_id:
-        old_table = await table_service.get_table_by_id(order.table_id)
-        await broadcast_table(old_table)
     return SOrder.model_validate(updated_order)
 
 
@@ -120,7 +108,6 @@ async def add_or_update_order_item(order_id: int, menu_item_id: int, order_item_
         else:
             order_item = await order_item_service.add_order_item(order_id, menu_item_id, order_item_data, order_service,
                                                                  menu_item_service)
-        await broadcast_order_item(order_item)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except IntegrityError:
@@ -167,7 +154,6 @@ async def delete_order_item(order_id: int, menu_item_id: int,
     try:
         order_item = await order_item_service.delete_order_item(order_id, menu_item_id, order_service,
                                                                 menu_item_service)
-        await broadcast_order_item(order_item, deleted=True)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"status": 200, "detail": f"Order item with id {order_item.id} deleted"}

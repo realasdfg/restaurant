@@ -10,6 +10,7 @@ from app.models.enums import OrderTypeEnum, MenuItemTypeEnum
 from app.services.crud_base import BaseCRUDService
 from app.services.menu import MenuItemsService
 from app.services.tables import TablesService
+from app.services.websockets import broadcast_order, broadcast_table, broadcast_order_item
 
 
 class OrdersService(BaseCRUDService):
@@ -25,7 +26,9 @@ class OrdersService(BaseCRUDService):
         order_dict["created_by"] = current_user.id
         order = await self.create(order_dict)
         if order_data.type == OrderTypeEnum.DINEIN:
-            await table_service.set_is_free(order_data.table_id, False)
+            table = await table_service.set_is_free(order_data.table_id, False)
+            await broadcast_table(table)
+        await broadcast_order(order)
         return order
 
     async def get_orders(self, filters: SOrderFilter) -> list[Order]:
@@ -48,9 +51,12 @@ class OrdersService(BaseCRUDService):
 
         updated_order = await self.update(order.id, order_data_dict)
         if order.table_id is not None:
-            await table_service.set_is_free(order.table_id, True)
+            old_table=await table_service.set_is_free(order.table_id, True)
+            await broadcast_table(old_table)
         if updated_order.table_id is not None:
-            await table_service.set_is_free(updated_order.table_id, False)
+            table = await table_service.set_is_free(updated_order.table_id, False)
+            await broadcast_table(table)
+        await broadcast_order(updated_order)
         return updated_order
 
     async def provide_order_payment(self, order: Order, order_data: SOrderEdit, table_service: TablesService,
@@ -76,7 +82,9 @@ class OrdersService(BaseCRUDService):
         order_data_dict['paid_by'] = current_user.id
         updated_order = await self.update(order.id, order_data_dict)
         if order.table:
-            await table_service.set_is_free(updated_order.table_id, True)
+            table = await table_service.set_is_free(updated_order.table_id, True)
+            await broadcast_table(table)
+        await broadcast_order(updated_order)
         return updated_order
 
     async def provide_order_payment_online(self, order: Order, order_data: SOrderEdit) -> Order:
@@ -86,6 +94,7 @@ class OrdersService(BaseCRUDService):
         order_data_dict['paid_at'] = datetime.now()
         order_data_dict['paid_by_card'] = await self.calculate_order_total_sum(order=order)
         updated_order = await self.update(order.id, order_data_dict)
+        await broadcast_order(updated_order)
         return updated_order
 
     async def calculate_order_total_sum(self, order_id: int = None, order: Order = None) -> Decimal:
@@ -121,7 +130,9 @@ class OrderItemsService(BaseCRUDService):
             'type': menu_item.type,
             'weight': menu_item.weight,
         }
-        return await self.create(order_item_dict)
+        order_item = await self.create(order_item_dict)
+        await broadcast_order_item(order_item)
+        return order_item
 
     async def get_order_items(self, order_id: int, order_service: OrdersService) -> list[OrderItem]:
         order = await order_service.get_order_by_id(order_id)
@@ -150,11 +161,15 @@ class OrderItemsService(BaseCRUDService):
             quantity = order_item.quantity + 1
         else:
             quantity = order_item_data.quantity
-        return await self.update(order_item.id, {'quantity': quantity})
+        updated_order_item = await self.update(order_item.id, {'quantity': quantity})
+        await broadcast_order_item(updated_order_item)
+        return updated_order_item
 
     async def delete_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
                                 menu_item_service: MenuItemsService) -> OrderItem:
         order_item = await self.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
         if order_item is None:
             raise ValueError("Order item not found")
-        return await self.delete(order_item.id)
+        deleted_order = await self.delete(order_item.id)
+        await broadcast_order_item(deleted_order, deleted=True)
+        return deleted_order

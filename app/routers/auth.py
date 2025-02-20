@@ -14,11 +14,7 @@ router = APIRouter(
 
 @router.post("/login")
 async def login(user_login_data: SUserLogin, auth_service: AuthService = Depends(auth_service)) -> SUserLoginResponse:
-    user = await auth_service.authenticate_user(user_login_data)
-
-    access_token = await create_jwt_token(data={"sub": user.username}, token_type='access')
-    refresh_token = await create_jwt_token(data={"sub": user.username}, token_type='refresh')
-
+    user, access_token, refresh_token = await auth_service.authenticate_user(user_login_data)
     response = SUserLoginResponse.model_validate(user)
     response.access_token = access_token
     response.refresh_token = refresh_token
