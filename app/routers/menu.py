@@ -27,24 +27,23 @@ async def add_menu_category(menu_category_data: SMenuCategoryAdd,
 
 
 @router.get('/menu-categories')
-async def get_menu_categories(category_service: MenuCategoriesService = Depends(menu_categories_service),
+async def get_menu_categories(include_deleted: bool = False,
+                              category_service: MenuCategoriesService = Depends(menu_categories_service),
                               current_user: User = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
                               ) -> list[SMenuCategory]:
-    include_deleted = False
-    if current_user:
-        include_deleted = True
+    if include_deleted and current_user is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     categories = await category_service.get_menu_categories(include_deleted)
     return [SMenuCategory.model_validate(cat) for cat in categories]
 
 
 @router.get('/menu-categories/{category_id}')
-async def get_menu_category(category_id: int,
+async def get_menu_category(category_id: int, include_deleted: bool = False,
                             category_service: MenuCategoriesService = Depends(menu_categories_service),
                             current_user: User = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
                             ) -> SMenuCategory:
-    include_deleted = False
-    if current_user:
-        include_deleted = True
+    if include_deleted and current_user is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     category = await category_service.get_menu_category_by_id(category_id, include_deleted)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -99,13 +98,12 @@ async def add_menu_item(menu_item_data: str = Form(...), image: UploadFile = Fil
 
 
 @router.get('/menu-items')
-async def get_menu_items(filters: SMenuItemFilter = Depends(),
+async def get_menu_items(filters: SMenuItemFilter = Depends(), include_deleted: bool = False,
                          item_service: MenuItemsService = Depends(menu_items_service),
                          current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
                          ) -> (list[SMenuItemPublicResponse] | list[SMenuItem]):
-    include_deleted = False
-    if current_user:
-        include_deleted = True
+    if include_deleted and current_user is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     items = await item_service.get_menu_items(filters, current_user, include_deleted)
     if current_user is None:
         return [SMenuItemPublicResponse.model_validate(item) for item in items]
@@ -114,12 +112,12 @@ async def get_menu_items(filters: SMenuItemFilter = Depends(),
 
 
 @router.get('/menu-items/{item_id}')
-async def get_menu_item(item_id: int, item_service: MenuItemsService = Depends(menu_items_service),
+async def get_menu_item(item_id: int, include_deleted: bool = False,
+                        item_service: MenuItemsService = Depends(menu_items_service),
                         current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
                         ) -> SMenuItemPublicResponse | SMenuItem:
-    include_deleted = False
-    if current_user:
-        include_deleted = True
+    if include_deleted and current_user is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     item = await item_service.get_menu_item_by_id(item_id, include_deleted)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")

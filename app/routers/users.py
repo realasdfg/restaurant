@@ -25,9 +25,9 @@ async def add_user(user_data: SUserAdd, user_service: UsersService = Depends(use
 
 
 @router.get('')
-async def get_all_users(user_service: UsersService = Depends(users_service),
+async def get_all_users(user_service: UsersService = Depends(users_service), include_deleted: bool = False,
                         current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> list[SUser]:
-    users = await user_service.get_users(include_deleted=True)
+    users = await user_service.get_users(include_deleted=include_deleted)
     return [SUser.model_validate(user) for user in users]
 
 
@@ -37,9 +37,9 @@ async def get_me(current_user: User = Depends(get_current_user)) -> SUser:
 
 
 @router.get('/{user_id}')
-async def get_user(user_id: int, user_service: UsersService = Depends(users_service),
+async def get_user(user_id: int, user_service: UsersService = Depends(users_service), include_deleted: bool = False,
                    current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SUser:
-    user = await user_service.get_user_by_id(user_id,True)
+    user = await user_service.get_user_by_id(user_id, include_deleted)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return SUser.model_validate(user)

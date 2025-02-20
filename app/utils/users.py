@@ -6,15 +6,7 @@ from app.models.users import User
 from app.models.enums import RoleEnum
 from app.services.users import UsersService
 from app.utils.auth import oauth2_scheme, verify_token
-
-ROLE_HIERARCHY = {
-    RoleEnum.STAFF: 1,
-    RoleEnum.ADMIN: 2,
-}
-
-
-async def has_access(user_role: RoleEnum, required_role: RoleEnum) -> bool:
-    return ROLE_HIERARCHY[user_role] >= ROLE_HIERARCHY[required_role]
+from app.utils.roles import has_access
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), user_service: UsersService = Depends(users_service)):

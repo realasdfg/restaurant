@@ -12,7 +12,8 @@ from app.services.menu import MenuItemsService
 from app.services.orders import OrdersService, OrderItemsService
 from app.services.statistics import StatisticsService
 from app.services.tables import TablesService
-from app.utils.users import get_current_user_if_role, has_access, get_current_user, get_current_user_if_role_or_none
+from app.utils.users import get_current_user_if_role, get_current_user, get_current_user_if_role_or_none
+from app.utils.roles import has_access
 
 router = APIRouter(
     prefix='/orders',

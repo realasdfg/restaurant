@@ -8,7 +8,8 @@ from app.schemas.tables import STableAdd, STable, STableOrdersFilter
 from app.models.enums import RoleEnum
 from app.services.orders import OrdersService
 from app.services.tables import TablesService
-from app.utils.users import get_current_user_if_role, get_current_user_if_role_or_none, has_access
+from app.utils.roles import has_access
+from app.utils.users import get_current_user_if_role, get_current_user_if_role_or_none
 
 router = APIRouter(
     prefix='/tables',
@@ -27,21 +28,20 @@ async def add_table(table_data: STableAdd, table_service: TablesService = Depend
 
 
 @router.get('')
-async def get_tables(table_service: TablesService = Depends(tables_service),
+async def get_tables(table_service: TablesService = Depends(tables_service), include_deleted: bool = False,
                      current_user: User = Depends(get_current_user_if_role(RoleEnum.STAFF))) -> list[STable]:
-    include_deleted = False
-    if await has_access(current_user.role, RoleEnum.ADMIN):
-        include_deleted = True
+    if include_deleted and not has_access(current_user.role, RoleEnum.ADMIN):
+        raise HTTPException(status_code=403, detail="Forbidden")
     tables = await table_service.get_tables(include_deleted)
     return [STable.model_validate(table) for table in tables]
 
 
 @router.get('/{table_id}')
-async def get_table(table_id: int, table_service: TablesService = Depends(tables_service),
+async def get_table(table_id: int, include_deleted: bool = False,
+                    table_service: TablesService = Depends(tables_service),
                     current_user: User = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))) -> STable:
-    include_deleted = False
-    if current_user:
-        include_deleted = True
+    if include_deleted and current_user is None:
+        raise HTTPException(status_code=403, detail="Forbidden")
     table = await table_service.get_table_by_id(table_id, include_deleted)
     if not table:
         raise HTTPException(status_code=404, detail="Table not found")
