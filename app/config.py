@@ -12,7 +12,5 @@ class Settings(BaseSettings):
     refresh_token_expires_days: int = 3
     file_upload_dir: str = '..\\restaurant_frontend\\public\\images'
 
-    # model_config = SettingsConfigDict(env_file=".env")
-
 
 settings = Settings()

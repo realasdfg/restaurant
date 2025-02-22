@@ -7,6 +7,7 @@ from app.schemas.menu import SMenuItemAdd, SMenuCategory, SMenuItem, SMenuItemEd
     SMenuItemPublicResponse, SMenuItemFilter
 from app.models.enums import RoleEnum
 from app.services.menu import MenuCategoriesService, MenuItemsService
+from app.utils.roles import has_access
 from app.utils.users import get_current_user_if_role, get_current_user_if_role_or_none
 
 router = APIRouter(
@@ -100,34 +101,33 @@ async def add_menu_item(menu_item_data: str = Form(...), image: UploadFile = Fil
 @router.get('/menu-items')
 async def get_menu_items(filters: SMenuItemFilter = Depends(), include_deleted: bool = False,
                          item_service: MenuItemsService = Depends(menu_items_service),
-                         current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
+                         current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.STAFF))
                          ) -> (list[SMenuItemPublicResponse] | list[SMenuItem]):
     if include_deleted and current_user is None:
         raise HTTPException(status_code=403, detail="Forbidden")
     items = await item_service.get_menu_items(filters, current_user, include_deleted)
-    if current_user is None:
-        return [SMenuItemPublicResponse.model_validate(item) for item in items]
-    else:
+    if current_user is not None and has_access(current_user.role, RoleEnum.ADMIN):
         return [SMenuItem.model_validate(item) for item in items]
+    else:
+        return [SMenuItemPublicResponse.model_validate(item) for item in items]
 
 
 @router.get('/menu-items/{item_id}')
 async def get_menu_item(item_id: int, include_deleted: bool = False,
                         item_service: MenuItemsService = Depends(menu_items_service),
-                        current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
+                        current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.STAFF))
                         ) -> SMenuItemPublicResponse | SMenuItem:
     if include_deleted and current_user is None:
         raise HTTPException(status_code=403, detail="Forbidden")
     item = await item_service.get_menu_item_by_id(item_id, include_deleted)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    if current_user is None:
+    if current_user is not None and has_access(current_user.role, RoleEnum.ADMIN):
+        return SMenuItem.model_validate(item)
+    else:
         if item.available is False:
             raise HTTPException(status_code=404, detail="Item not found")
         return SMenuItemPublicResponse.model_validate(item)
-    else:
-        return SMenuItem.model_validate(item)
-
 
 @router.patch('/menu-items/{item_id}')
 async def update_menu_item(item_id: int, menu_item_data: str | None = Form(None), image: UploadFile | None = File(None),
