@@ -15,7 +15,7 @@ class SOrderAdd(BaseModel):
         extra = 'forbid'
 
     @model_validator(mode='after')
-    def check_table_for_dine_in(self):
+    def check_table_id(self):
         if self.type == OrderTypeEnum.DINEIN and self.table_id is None:
             raise ValueError("Order with 'dine in' type must have table_id.")
         elif self.type == OrderTypeEnum.TOGO and self.table_id is not None:
