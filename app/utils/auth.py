@@ -25,8 +25,10 @@ async def create_jwt_token(data: dict, token_type: str = 'access', expires_delta
     to_encode = data.copy()
     if token_type == 'access':
         expire = datetime.now(timezone.utc) + (expires_delta or timedelta(hours=settings.access_token_expires_hours))
-    else:
+    elif token_type == 'refresh':
         expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=settings.refresh_token_expires_days))
+    else:
+        raise ValueError('token_type must be either access or refresh')
     to_encode.update({'exp': expire, 'type': f'{token_type}'})
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.jwt_algorithm)
     return encoded_jwt
