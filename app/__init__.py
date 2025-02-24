@@ -1,22 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers.auth import router as auth_router
-from app.routers.menu import router as menu_router
-from app.routers.users import router as users_router
-from app.routers.tables import router as tables_router
-from app.routers.orders import router as orders_router
-from app.routers.websockets import router as websockets_router
+from app.routers.auth import AuthRouter
+from app.routers.menu import MenuItemsRouter, MenuCategoriesRouter
+from app.routers.users import UsersRouter
+from app.routers.tables import TablesRouter
+from app.routers.orders import OrdersRouter
+from app.routers.websockets import WebsocketRouter
 
 def create_app():
     app = FastAPI(root_path='/api/v1')
-    app.include_router(websockets_router)
+    app.include_router(WebsocketRouter().router)
 
-    app.include_router(auth_router)
-    app.include_router(menu_router)
-    app.include_router(users_router)
-    app.include_router(tables_router)
-    app.include_router(orders_router)
+    app.include_router(AuthRouter().router)
+    app.include_router(MenuItemsRouter().router)
+    app.include_router(MenuCategoriesRouter().router)
+    app.include_router(UsersRouter().router)
+    app.include_router(TablesRouter().router)
+    app.include_router(OrdersRouter().router)
 
     origins = [
         "http://localhost:5173",
