@@ -59,8 +59,8 @@ class OrdersService(BaseCRUDService):
         await broadcast_order(updated_order)
         return updated_order
 
-    async def provide_order_payment(self, order: Order, order_data: SOrderEdit, table_service: TablesService,
-                                    current_user: User) -> Order:
+    async def close_order(self, order: Order, order_data: SOrderEdit, table_service: TablesService,
+                          current_user: User) -> Order:
         if not order.order_items:
             raise HTTPException(status_code=400, detail="Can't provide order payment with 0 total sum order")
         order_data_dict = order_data.model_dump(exclude_unset=True)

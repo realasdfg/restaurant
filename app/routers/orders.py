@@ -84,8 +84,8 @@ class OrdersRouter:
         updated_order = None
         try:
             if order_data.paid is not None:
-                updated_order = await order_service.provide_order_payment(order, order_data, table_service,
-                                                                          current_user)
+                updated_order = await order_service.close_order(order, order_data, table_service,
+                                                                current_user)
             elif order_data.type is not None or order_data.table_id is not None:
                 updated_order = await order_service.update_order_info(order, order_data, table_service)
             elif order_data.paid_online is not None:
