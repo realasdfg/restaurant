@@ -1,6 +1,4 @@
 # Restaurant Automation System — Backend
-<img width="1483" height="560" alt="image" src="https://github.com/user-attachments/assets/faa30b9b-c51c-4f81-9200-9c1f46227b56" />
-<img width="1468" height="817" alt="image" src="https://github.com/user-attachments/assets/02100ac1-f32c-47fa-a606-66c8977cb1e6" />
 
 Backend service for a restaurant management system built with FastAPI using Onion Architecture.<br>
 [Frontend Repository](https://github.com/realasdfg/restaurant_frontend)
@@ -86,6 +84,14 @@ After starting the application:
 * Menu Management
 * Order Processing
 * Table Management
+* Statistics
+
+## Screenshots
+
+<img width="1451" height="875" alt="image" src="https://github.com/user-attachments/assets/65496d06-3c9a-41ba-b90f-59a26a898c99" />
+<img width="1457" height="768" alt="image" src="https://github.com/user-attachments/assets/2f5a0f58-833a-4ad9-b0e3-b4dbb26a9909" />
+<img width="1450" height="550" alt="image" src="https://github.com/user-attachments/assets/a42f1400-20db-4d01-a403-e78273ea0d08" />
+
 
 ## Project Structure
 
