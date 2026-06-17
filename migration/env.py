@@ -6,11 +6,19 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.models.menu import MenuCategory, MenuItem
+from app.models.users import User
+from app.models.orders import Order, OrderItem
+from app.models.tables import Table
 from app.database import Base
+from app.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+
+section = config.config_ini_section
+config.set_section_option(section, 'DB_URI', settings.db_uri)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

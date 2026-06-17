@@ -1,0 +1,20 @@
+from fastapi import HTTPException
+from starlette import status
+
+from app.models.users import User
+from app.schemas.auth import SUserLogin
+from app.services.crud_base import BaseCRUDService
+from app.utils.auth import verify_password, create_jwt_token
+
+
+class AuthService(BaseCRUDService):
+
+    async def authenticate_user(self, user_login_data: SUserLogin) -> tuple[User, str, str]:
+        user = await self.get_one({'username': user_login_data.username})
+        if not user or not verify_password(user_login_data.password, user.password):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Invalid username or password")
+
+        access_token = await create_jwt_token(data={"sub": user.username}, token_type='access')
+        refresh_token = await create_jwt_token(data={"sub": user.username}, token_type='refresh')
+
+        return user, access_token, refresh_token

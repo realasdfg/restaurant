@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from app.config import settings
 
-
-engine = create_async_engine('postgresql+asyncpg://postgres:qwerty@localhost:5432/restaurant')
+engine = create_async_engine(settings.sqlalchemy_engine_uri)
 
 Base = declarative_base()
 

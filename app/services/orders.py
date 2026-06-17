@@ -1,0 +1,175 @@
+from datetime import datetime
+from decimal import Decimal, ROUND_FLOOR
+
+from fastapi import HTTPException
+
+from app.models.orders import Order, OrderItem
+from app.models.users import User
+from app.schemas.orders import SOrderAdd, SOrderFilter, SOrderEdit, SOrderItemAddOrEdit
+from app.models.enums import OrderTypeEnum, MenuItemTypeEnum
+from app.services.crud_base import BaseCRUDService
+from app.services.menu import MenuItemsService
+from app.services.tables import TablesService
+from app.services.websockets import broadcast_order, broadcast_table, broadcast_order_item
+
+
+class OrdersService(BaseCRUDService):
+
+    async def add_order(self, order_data: SOrderAdd, table_service: TablesService, current_user: User) -> Order:
+        if order_data.type == OrderTypeEnum.DINEIN:
+            table = await table_service.get_table_by_id(order_data.table_id)
+            if table is None:
+                raise ValueError("Table not found")
+            if not table.is_free:
+                raise HTTPException(status_code=400, detail="Table is already occupied")
+        order_dict = order_data.model_dump()
+        order_dict["created_by"] = current_user.id
+        order = await self.create(order_dict)
+        if order_data.type == OrderTypeEnum.DINEIN:
+            table = await table_service.set_is_free(order_data.table_id, False)
+            await broadcast_table(table)
+        await broadcast_order(order)
+        return order
+
+    async def get_orders(self, filters: SOrderFilter) -> list[Order]:
+        filters_dict = filters.to_query_filters()
+        return await self.get_all(filters_dict, Order.created_at.desc())
+
+    async def get_order_by_id(self, order_id) -> Order | None:
+        return await self.get_one({'id': order_id})
+
+    async def update_order_info(self, order: Order, order_data: SOrderEdit, table_service: TablesService) -> Order:
+        order_data_dict = order_data.model_dump(exclude_unset=True)
+        if order_data_dict.get('type') == OrderTypeEnum.TOGO:
+            order_data_dict['table_id'] = None
+        elif order_data_dict.get('type') == OrderTypeEnum.DINEIN or order_data_dict.get('table_id'):
+            new_table = await table_service.get_table_by_id(order_data.table_id)
+            if new_table is None:
+                raise ValueError("Table not found")
+            if not new_table.is_free:
+                raise HTTPException(status_code=400, detail="Table is already occupied.")
+
+        updated_order = await self.update(order.id, order_data_dict)
+        if order.table_id is not None:
+            old_table=await table_service.set_is_free(order.table_id, True)
+            await broadcast_table(old_table)
+        if updated_order.table_id is not None:
+            table = await table_service.set_is_free(updated_order.table_id, False)
+            await broadcast_table(table)
+        await broadcast_order(updated_order)
+        return updated_order
+
+    async def close_order(self, order: Order, order_data: SOrderEdit, table_service: TablesService,
+                          current_user: User) -> Order:
+        if not order.order_items:
+            raise HTTPException(status_code=400, detail="Can't provide order payment with 0 total sum order")
+        order_data_dict = order_data.model_dump(exclude_unset=True)
+        if order.paid_online:
+            if order_data.paid_by_cash is not None or order_data.paid_by_card is not None:
+                raise HTTPException(status_code=422, detail="Order is already paid online. Can't provide sums to it.")
+        else:
+            if order_data.paid_by_cash is None and order_data.paid_by_card is None:
+                raise HTTPException(status_code=422,
+                                    detail="Must be provided some sums (paid_by_card or/and paid_by_cash) for payment")
+
+            provided_sum = order_data_dict.get('paid_by_card') if order_data_dict.get('paid_by_card') else Decimal(0)
+            provided_sum += order_data_dict.get('paid_by_cash') if order_data_dict.get('paid_by_cash') else Decimal(0)
+            total_sum = await self.calculate_order_total_sum(order=order)
+            if provided_sum != total_sum:
+                raise HTTPException(status_code=400,
+                                    detail=f"Total order items sum ({total_sum}) must be equal to provided sum ({provided_sum})")
+            order_data_dict['paid_at'] = datetime.now()
+        order_data_dict['paid_by'] = current_user.id
+        updated_order = await self.update(order.id, order_data_dict)
+        if order.table:
+            table = await table_service.set_is_free(updated_order.table_id, True)
+            await broadcast_table(table)
+        await broadcast_order(updated_order)
+        return updated_order
+
+    async def provide_order_payment_online(self, order: Order, order_data: SOrderEdit) -> Order:
+        if not order.order_items:
+            raise HTTPException(status_code=400, detail="Can't provide order payment with 0 total sum order")
+        order_data_dict = order_data.model_dump(exclude_unset=True)
+        order_data_dict['paid_at'] = datetime.now()
+        order_data_dict['paid_by_card'] = await self.calculate_order_total_sum(order=order)
+        updated_order = await self.update(order.id, order_data_dict)
+        await broadcast_order(updated_order)
+        return updated_order
+
+    async def calculate_order_total_sum(self, order_id: int = None, order: Order = None) -> Decimal:
+        if order is None:
+            order = await self.get_order_by_id(order_id)
+            if order is None:
+                raise ValueError("Order not found")
+        return Decimal(sum((item.price * item.quantity).quantize(Decimal('0.01'), rounding=ROUND_FLOOR)
+                           if item.type == MenuItemTypeEnum.BY_QUANTITY
+                           else ((item.quantity / Decimal(item.weight)) * item.price)
+                           .quantize(Decimal('0.01'), rounding=ROUND_FLOOR)
+                           for item in order.order_items))
+
+
+class OrderItemsService(BaseCRUDService):
+
+    async def add_order_item(self, order_id: int, menu_item_id: int, order_item_data: SOrderItemAddOrEdit,
+                             order_service: OrdersService, menu_item_service: MenuItemsService) -> OrderItem:
+        if order_item_data.quantity is None:
+            raise HTTPException(status_code=422, detail="Quantity cannot be empty")
+        order = await order_service.get_order_by_id(order_id)
+        if order is None:
+            raise ValueError("Order not found")
+        menu_item = await menu_item_service.get_menu_item_by_id(menu_item_id)
+        if menu_item is None:
+            raise ValueError("Menu item not found")
+        order_item_dict = {
+            'quantity': order_item_data.quantity,
+            'order_id': order_id,
+            'menu_item_id': menu_item_id,
+            'cost': menu_item.cost,
+            'price': menu_item.price,
+            'type': menu_item.type,
+            'weight': menu_item.weight,
+        }
+        order_item = await self.create(order_item_dict)
+        await broadcast_order_item(order_item)
+        return order_item
+
+    async def get_order_items(self, order_id: int, order_service: OrdersService) -> list[OrderItem]:
+        order = await order_service.get_order_by_id(order_id)
+        if order is None:
+            raise ValueError("Order not found")
+        return await self.get_all({'order_id': order_id})
+
+    async def get_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
+                             menu_item_service: MenuItemsService) -> OrderItem | None:
+        order = await order_service.get_order_by_id(order_id)
+        if order is None:
+            raise ValueError("Order not found")
+        menu_item = await menu_item_service.get_menu_item_by_id(menu_item_id)
+        if menu_item is None:
+            raise ValueError("Menu item not found")
+        return await self.get_one({'order_id': order_id, 'menu_item_id': menu_item_id})
+
+    async def update_order_item_quantity(self, order_id: int, menu_item_id: int, order_item_data: SOrderItemAddOrEdit,
+                                         order_service: OrdersService, menu_item_service: MenuItemsService
+                                         ) -> OrderItem:
+        order_item = await self.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
+        if order_item is None:
+            raise ValueError("Order item not found")
+
+        if order_item_data.quantity is None:
+            quantity = order_item.quantity + 1
+        else:
+            quantity = order_item_data.quantity
+        updated_order_item = await self.update(order_item.id, {'quantity': quantity})
+        await broadcast_order_item(updated_order_item)
+        return updated_order_item
+
+    async def delete_order_item(self, order_id: int, menu_item_id: int, order_service: OrdersService,
+                                menu_item_service: MenuItemsService) -> OrderItem:
+        order_item = await self.get_order_item(order_id, menu_item_id, order_service, menu_item_service)
+        if order_item is None:
+            raise ValueError("Order item not found")
+        deleted_order = await self.delete(order_item.id)
+        await broadcast_order_item(deleted_order, deleted=True)
+        return deleted_order

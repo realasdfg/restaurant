@@ -1,47 +1,159 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_async_session
-from app.models.menu import MenuCategory
-from app.schemas.menu import MenuItemSchema, MenuCategorySchema, MenuCategoryResponse
-
-router = APIRouter(
-    prefix='/menu',
-    tags=['Menu']
-)
-
-menu_list = []
+from app.dependencies import menu_categories_service, menu_items_service
+from app.models.users import User
+from app.schemas.menu import SMenuItemAdd, SMenuCategory, SMenuItem, SMenuItemEdit, SMenuCategoryAdd, \
+    SMenuItemPublicResponse, SMenuItemFilter
+from app.models.enums import RoleEnum
+from app.services.menu import MenuCategoriesService, MenuItemsService
+from app.utils.roles import has_access
+from app.utils.users import get_current_user_if_role, get_current_user_if_role_or_none
 
 
-@router.post('/categories')
-async def add_category(menu_category: MenuCategorySchema = Depends(),
-                       session: AsyncSession = Depends(get_async_session)) -> MenuCategoryResponse:
-    new_category = MenuCategory(name=menu_category.name)
-    session.add(new_category)
-    try:
-        await session.commit()
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(status_code=400, detail="Category already exists")
-    return MenuCategoryResponse.model_validate(new_category, from_attributes=True)
+class MenuCategoriesRouter:
+    def __init__(self):
+        self.router = APIRouter(prefix="/menu-categories", tags=["Menu Categories"])
+        self.router.add_api_route("", self.add_menu_category, methods=["POST"])
+        self.router.add_api_route("", self.get_menu_categories, methods=["GET"])
+        self.router.add_api_route("/{category_id}", self.get_menu_category, methods=["GET"])
+        self.router.add_api_route("/{category_id}", self.update_menu_category, methods=["PUT"])
+        self.router.add_api_route("/{category_id}", self.delete_menu_category, methods=["DELETE"])
 
-@router.get('/categories')
-async def get_categories(session: AsyncSession = Depends(get_async_session)):
-    result = await session.execute(select(MenuCategory))
-    categories = result.scalars().all()
-    return [MenuCategoryResponse.model_validate(cat, from_attributes=True) for cat in categories]
+    async def add_menu_category(self, menu_category_data: SMenuCategoryAdd,
+                                category_service: MenuCategoriesService = Depends(menu_categories_service),
+                                current_user: User = Depends(
+                                    get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategory:
+        try:
+            category = await category_service.add_menu_category(menu_category_data)
+        except IntegrityError:
+            raise HTTPException(status_code=400, detail="Category with this name already exists")
+        return SMenuCategory.model_validate(category)
+
+    async def get_menu_categories(self, include_deleted: bool = False,
+                                  category_service: MenuCategoriesService = Depends(menu_categories_service),
+                                  current_user: User = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
+                                  ) -> list[SMenuCategory]:
+        if include_deleted and current_user is None:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        categories = await category_service.get_menu_categories(include_deleted)
+        return [SMenuCategory.model_validate(cat) for cat in categories]
+
+    async def get_menu_category(self, category_id: int, include_deleted: bool = False,
+                                category_service: MenuCategoriesService = Depends(menu_categories_service),
+                                current_user: User = Depends(get_current_user_if_role_or_none(RoleEnum.ADMIN))
+                                ) -> SMenuCategory:
+        if include_deleted and current_user is None:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        category = await category_service.get_menu_category_by_id(category_id, include_deleted)
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
+        return SMenuCategory.model_validate(category)
+
+    async def update_menu_category(self, category_id: int, menu_category_data: SMenuCategoryAdd,
+                                   category_service: MenuCategoriesService = Depends(menu_categories_service),
+                                   current_user: User = Depends(
+                                       get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuCategory:
+        try:
+            category = await category_service.update_menu_category_by_id(category_id, menu_category_data)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except IntegrityError:
+            raise HTTPException(status_code=400, detail="Category with this name already exists")
+        return SMenuCategory.model_validate(category)
+
+    async def delete_menu_category(self, category_id: int,
+                                   category_service: MenuCategoriesService = Depends(menu_categories_service),
+                                   item_service: MenuItemsService = Depends(menu_items_service),
+                                   current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
+        try:
+            await category_service.delete_menu_category_by_id(category_id, item_service)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        return {"status": 200, "detail": f"Category with id {category_id} deleted"}
 
 
-@router.post('/')
-async def add_menu_item(menu_item: MenuItemSchema,
-                        session: AsyncSession = Depends(get_async_session)):
-    session.add(menu_item)
-    await session.commit()
-    return {"message": "Menu item added successfully"}
+class MenuItemsRouter:
+    def __init__(self):
+        self.router = APIRouter(prefix="/menu-items", tags=["Menu Items"])
+        self.router.add_api_route("", self.add_menu_item, methods=["POST"])
+        self.router.add_api_route("", self.get_menu_items, methods=["GET"])
+        self.router.add_api_route("/{item_id}", self.get_menu_item, methods=["GET"])
+        self.router.add_api_route("/{item_id}", self.update_menu_item, methods=["PATCH"])
+        self.router.add_api_route("/{item_id}", self.delete_menu_item, methods=["DELETE"])
 
+    async def add_menu_item(self, menu_item_data: str = Form(...), image: UploadFile = File(...),
+                            item_service: MenuItemsService = Depends(menu_items_service),
+                            category_service: MenuCategoriesService = Depends(menu_categories_service),
+                            current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
+        try:
+            menu_item = SMenuItemAdd.model_validate_json(menu_item_data)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON data")
 
-@router.get('/')
-async def menu():
-    return menu_list
+        if not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Invalid file type. Only image files are allowed.")
+
+        try:
+            item = await item_service.add_menu_item(menu_item, image, category_service)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        except IntegrityError:
+            raise HTTPException(status_code=400, detail='Failed to create item due to a database error.')
+        return SMenuItem.model_validate(item)
+
+    async def get_menu_items(self, filters: SMenuItemFilter = Depends(), include_deleted: bool = False,
+                             item_service: MenuItemsService = Depends(menu_items_service),
+                             current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.STAFF))
+                             ) -> (list[SMenuItemPublicResponse] | list[SMenuItem]):
+        if include_deleted and current_user is None:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        items = await item_service.get_menu_items(filters, current_user, include_deleted)
+        if current_user is not None and await has_access(current_user.role, RoleEnum.ADMIN):
+            return [SMenuItem.model_validate(item) for item in items]
+        else:
+            return [SMenuItemPublicResponse.model_validate(item) for item in items]
+
+    async def get_menu_item(self, item_id: int, include_deleted: bool = False,
+                            item_service: MenuItemsService = Depends(menu_items_service),
+                            current_user: User | None = Depends(get_current_user_if_role_or_none(RoleEnum.STAFF))
+                            ) -> SMenuItemPublicResponse | SMenuItem:
+        if include_deleted and current_user is None:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        item = await item_service.get_menu_item_by_id(item_id, include_deleted)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        if current_user is not None and await has_access(current_user.role, RoleEnum.ADMIN):
+            return SMenuItem.model_validate(item)
+        else:
+            if item.available is False:
+                raise HTTPException(status_code=404, detail="Item not found")
+            return SMenuItemPublicResponse.model_validate(item)
+
+    async def update_menu_item(self, item_id: int, menu_item_data: str | None = Form(None),
+                               image: UploadFile | None = File(None),
+                               item_service: MenuItemsService = Depends(menu_items_service),
+                               category_service: MenuCategoriesService = Depends(menu_categories_service),
+                               current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))) -> SMenuItem:
+        menu_item = None
+        try:
+            if menu_item_data:
+                menu_item = SMenuItemEdit.model_validate_json(menu_item_data)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON data")
+
+        if image and not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="Invalid file type. Only image files are allowed.")
+        try:
+            item = await item_service.update_menu_item_by_id(item_id, category_service, menu_item, image)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        return SMenuItem.model_validate(item)
+
+    async def delete_menu_item(self, item_id: int, item_service: MenuItemsService = Depends(menu_items_service),
+                               current_user: User = Depends(get_current_user_if_role(RoleEnum.ADMIN))):
+        try:
+            await item_service.delete_menu_item_by_id(item_id)
+        except ValueError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        return {"status": 200, "detail": f"Item with id {item_id} deleted"}
