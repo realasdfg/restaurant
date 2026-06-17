@@ -1,6 +1,10 @@
 # Restaurant Automation System — Backend
+<img width="1483" height="560" alt="image" src="https://github.com/user-attachments/assets/faa30b9b-c51c-4f81-9200-9c1f46227b56" />
+<img width="1479" height="774" alt="image" src="https://github.com/user-attachments/assets/091a3694-c8fe-42ed-af60-29e07b1458b9" />
+<img width="1468" height="817" alt="image" src="https://github.com/user-attachments/assets/02100ac1-f32c-47fa-a606-66c8977cb1e6" />
 
-Backend service for a restaurant management system built with FastAPI.
+Backend service for a restaurant management system built with FastAPI.<br>
+[Frontend Repository](https://github.com/realasdfg/restaurant_frontend)
 
 ## Features
 
