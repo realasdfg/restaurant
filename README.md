@@ -66,7 +66,7 @@ alembic upgrade head
 ### Run the server
 
 ```bash
-uvicorn app.main:app --reload
+python main.py
 ```
 
 ## API Documentation
